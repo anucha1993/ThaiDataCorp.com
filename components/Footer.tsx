@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/format";
 import { getSupportEmail } from "@/lib/settings";
+import { CookieSettingsLink } from "@/components/CookieConsent";
 
 export default async function Footer() {
   const year = new Date().getFullYear();
@@ -34,6 +35,7 @@ export default async function Footer() {
           <Link href="/pricing">สมาชิก</Link>
           <Link href="/terms">เงื่อนไขการใช้งาน</Link>
           <Link href="/contact">ติดต่อเรา / แจ้งปัญหา</Link>
+          <CookieSettingsLink />
           <a href="https://data.go.th" rel="noopener" target="_blank">
             data.go.th
           </a>

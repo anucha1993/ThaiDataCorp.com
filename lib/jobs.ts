@@ -52,6 +52,13 @@ export const JOBS: JobDef[] = [
     script: "send-alerts.ts",
     staleMinutes: 30,
   },
+  {
+    key: "analytics-cleanup",
+    label: "ล้างข้อมูลสถิติ / IP เก่า",
+    description: "ลบ IP ที่เก็บเกิน 90 วัน และข้อมูลการเข้าชมเกิน 400 วัน (ตามนโยบายความเป็นส่วนตัว)",
+    script: "analytics-cleanup.ts",
+    staleMinutes: 30,
+  },
 ];
 
 export const jobByKey = (key: string) => JOBS.find((j) => j.key === key);

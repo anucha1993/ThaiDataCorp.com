@@ -3,6 +3,8 @@
  * - visitor = SHA-256(เกลือรายวัน + IP + User-Agent) ตัด 16 ตัว → นับผู้เข้าชมไม่ซ้ำรายวันได้ แต่ย้อนกลับเป็น IP ไม่ได้
  *   และเปลี่ยนทุกวัน (ติดตามคนข้ามวันไม่ได้) — แนวทางเดียวกับ Plausible / Fathom
  * - ts เก็บเป็น UTC · จัดกลุ่มรายวัน/ชั่วโมงตามเวลาไทย (+7)
+ * - ip: เก็บ 90 วันเพื่อความปลอดภัย (scripts/analytics-cleanup.ts ลบทิ้ง) — ไม่ใช้ในการนับสถิติ
+ * - vid: คุกกี้ tdc_vid เฉพาะผู้ที่กดยอมรับคุกกี้สถิติ → นับผู้เข้าชมไม่ซ้ำข้ามวัน / ผู้เข้าชมใหม่-กลับมาซ้ำ
  */
 import "server-only";
 import { createHash } from "node:crypto";
@@ -90,11 +92,13 @@ export async function recordView(v: {
   browser: string;
   os: string;
   member: boolean;
+  ip: string | null;
+  vid: string | null;
 }): Promise<void> {
   await dbQuery(
-    `INSERT INTO page_view (ts, path, entity_type, entity_id, query, visitor, referrer, device, browser, os, member)
-     VALUES (UTC_TIMESTAMP(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [v.path, v.type, v.id, v.query, v.visitor, v.referrer, v.device, v.browser, v.os, v.member ? 1 : 0],
+    `INSERT INTO page_view (ts, path, entity_type, entity_id, query, visitor, referrer, device, browser, os, member, ip, vid)
+     VALUES (UTC_TIMESTAMP(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [v.path, v.type, v.id, v.query, v.visitor, v.referrer, v.device, v.browser, v.os, v.member ? 1 : 0, v.ip, v.vid],
   );
 }
 
@@ -204,10 +208,75 @@ export async function getRealtime() {
   };
 }
 
-/** ลบข้อมูลดิบเก่ากว่า N วัน (เรียกจากงานตามกำหนดเวลา) */
-export async function purgeOldViews(keepDays = 400): Promise<number> {
-  const r = await dbQuery<import("mysql2").ResultSetHeader>(`DELETE FROM page_view WHERE ts < UTC_TIMESTAMP() - INTERVAL ? DAY LIMIT 100000`, [
-    keepDays,
+/**
+ * ตัวสำรองของงาน analytics-cleanup (เผื่อยังไม่ได้ตั้ง Scheduled Task): ลบ IP เกิน 90 วัน + ข้อมูลดิบเกิน 400 วัน
+ * เรียกจาก /api/track เป็นครั้งคราว
+ */
+export async function purgeOldViews(keepDays = 400, ipDays = 90): Promise<void> {
+  await dbQuery(`UPDATE page_view SET ip = NULL WHERE ip IS NOT NULL AND ts < UTC_TIMESTAMP() - INTERVAL ? DAY LIMIT 50000`, [ipDays]);
+  await dbQuery(`DELETE FROM page_view WHERE ts < UTC_TIMESTAMP() - INTERVAL ? DAY LIMIT 50000`, [keepDays]);
+}
+
+/* -------------------------------------------- คุกกี้สถิติ (ผู้ที่ยอมรับ) */
+
+/** ผู้เข้าชมที่ยอมรับคุกกี้: ไม่ซ้ำ / ใหม่ / กลับมาซ้ำ + สัดส่วนการยอมรับ */
+export async function getConsentStats(f: AnalyticsFilter) {
+  const { sql, params } = where(f);
+  const v = sql.replace(/\b(ts|entity_type|entity_id|path)\b/g, "v.$1");
+  const [share, kinds] = await Promise.all([
+    dbQuery<RowDataPacket[]>(`SELECT COUNT(*) views, SUM(vid IS NOT NULL) consented FROM page_view WHERE ${sql}`, params),
+    // ผู้เข้าชมใหม่ = เข้าครั้งแรก (ทั้งประวัติ) อยู่ในช่วงที่เลือก
+    dbQuery<RowDataPacket[]>(
+      `SELECT COUNT(*) total, SUM(first_ts >= ? - INTERVAL 7 HOUR) fresh FROM (
+         SELECT v.vid, (SELECT MIN(p2.ts) FROM page_view p2 WHERE p2.vid = v.vid) first_ts
+         FROM page_view v WHERE ${v} AND v.vid IS NOT NULL GROUP BY v.vid) x`,
+      [f.from, ...params],
+    ),
   ]);
-  return r.affectedRows;
+  const views = Number(share[0]?.views ?? 0);
+  const total = Number(kinds[0]?.total ?? 0);
+  const fresh = Number(kinds[0]?.fresh ?? 0);
+  return {
+    consentRate: views ? Number(share[0]?.consented ?? 0) / views : 0,
+    visitors: total,
+    newVisitors: fresh,
+    returning: total - fresh,
+  };
+}
+
+/* ------------------------------------------------- IP (ความปลอดภัย) */
+
+export async function getTopIps(days: number, limit = 100) {
+  const rows = await dbQuery<RowDataPacket[]>(
+    `SELECT ip, COUNT(*) views, COUNT(DISTINCT path) pages, COUNT(DISTINCT visitor) uas,
+       MIN(ts) first_ts, MAX(ts) last_ts, MAX(member) member,
+       SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT CONCAT(device, ' · ', browser, ' · ', os) SEPARATOR '|'), '|', 1) agent
+     FROM page_view WHERE ip IS NOT NULL AND ts >= UTC_TIMESTAMP() - INTERVAL ? DAY
+     GROUP BY ip ORDER BY views DESC LIMIT ?`,
+    [days, limit],
+  );
+  return rows.map((r) => ({
+    ip: String(r.ip),
+    views: Number(r.views),
+    pages: Number(r.pages),
+    uas: Number(r.uas),
+    first: String(r.first_ts),
+    last: String(r.last_ts),
+    member: Number(r.member) === 1,
+    agent: r.agent ? String(r.agent) : "-",
+  }));
+}
+
+export async function getIpViews(ip: string, limit = 500) {
+  const rows = await dbQuery<RowDataPacket[]>(
+    `SELECT ts, path, referrer, device, browser, os, member FROM page_view WHERE ip = ? ORDER BY ts DESC LIMIT ?`,
+    [ip, limit],
+  );
+  return rows.map((r) => ({
+    ts: String(r.ts),
+    path: String(r.path),
+    referrer: r.referrer ? String(r.referrer) : null,
+    agent: `${r.device} · ${r.browser} · ${r.os}`,
+    member: Number(r.member) === 1,
+  }));
 }

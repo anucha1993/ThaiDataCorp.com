@@ -4,6 +4,7 @@ import { Sarabun } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import PageTracker from "@/components/PageTracker";
+import CookieConsent from "@/components/CookieConsent";
 import { Suspense } from "react";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/format";
 import "./globals.css";
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <Suspense fallback={null}>
           <PageTracker />
         </Suspense>
+        <CookieConsent />
       </body>
     </html>
   );

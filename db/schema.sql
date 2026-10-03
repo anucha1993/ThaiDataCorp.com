@@ -425,3 +425,12 @@ CREATE TABLE IF NOT EXISTS page_view (
   KEY idx_entity (entity_type, entity_id, ts),
   KEY idx_path (path(120), ts)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v18: เก็บ IP 90 วัน (บันทึกความปลอดภัย) + รหัสผู้เข้าชมจากคุกกี้สถิติ (เฉพาะผู้ที่กดยอมรับ)
+ALTER TABLE page_view
+  ADD COLUMN IF NOT EXISTS ip  VARCHAR(45) NULL COMMENT 'ลบ (ตั้งเป็น NULL) เมื่อครบ 90 วัน — งาน analytics-cleanup',
+  ADD COLUMN IF NOT EXISTS vid CHAR(22)    NULL COMMENT 'คุกกี้ tdc_vid (มีเฉพาะผู้ยอมรับคุกกี้สถิติ)',
+  ADD INDEX IF NOT EXISTS idx_ip (ip, ts),
+  ADD INDEX IF NOT EXISTS idx_vid (vid, ts);
+-- งานล้างข้อมูล: เปิดไว้ตั้งแต่แรก (เป็นข้อผูกพันตามนโยบายความเป็นส่วนตัว)
+INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('analytics-cleanup', 1, '20 3 * * *', NULL);

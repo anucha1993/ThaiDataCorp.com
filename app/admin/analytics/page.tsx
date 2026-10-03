@@ -3,7 +3,7 @@ import AdminCard from "@/components/AdminCard";
 import { ShareBar } from "@/components/HomeCharts";
 import { buttonCls, inputCls } from "@/components/Panel";
 import { ViewsLine } from "@/components/ViewsChart";
-import { getOverview, getRealtime, type AnalyticsFilter } from "@/lib/analytics";
+import { getConsentStats, getOverview, getRealtime, type AnalyticsFilter } from "@/lib/analytics";
 import { agencyUrl, formatNumber, tsicUrl } from "@/lib/format";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -34,7 +34,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
     id: one(q.id) || undefined,
     path: one(q.path).startsWith("/") ? one(q.path) : undefined,
   };
-  const [o, rt] = await Promise.all([getOverview(f), getRealtime()]);
+  const [o, rt, cs] = await Promise.all([getOverview(f), getRealtime(), getConsentStats(f)]);
   const base = { range, from: f.from, to: f.to };
   const drill = (extra: Record<string, string>) => `/admin/analytics?${new URLSearchParams({ ...base, ...extra })}`;
   const scoped = Boolean(f.type || f.path);
@@ -101,6 +101,24 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           ))}
         </div>
 
+        <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            ["ผู้เข้าชมไม่ซ้ำทั้งช่วง (คุกกี้)", formatNumber(cs.visitors)],
+            ["ผู้เข้าชมใหม่", formatNumber(cs.newVisitors)],
+            ["กลับมาเข้าชมซ้ำ", `${formatNumber(cs.returning)}${cs.visitors ? ` (${((cs.returning / cs.visitors) * 100).toFixed(0)}%)` : ""}`],
+            ["อัตรายอมรับคุกกี้สถิติ", `${(cs.consentRate * 100).toFixed(1)}%`],
+          ].map(([k, v]) => (
+            <div key={k} className="border border-wiki-border-light bg-wiki-bg p-3">
+              <div className="text-xs text-wiki-muted">{k}</div>
+              <div className="font-serif text-2xl tabular-nums">{v}</div>
+            </div>
+          ))}
+        </div>
+        <p className="-mt-2 mb-4 text-xs text-wiki-muted">
+          แถวนี้นับเฉพาะผู้ที่กด &ldquo;ยอมรับคุกกี้&rdquo; ({(cs.consentRate * 100).toFixed(1)}% ของการเข้าชม) — ตัวเลขจริงจึงมากกว่านี้ ·{" "}
+          <Link href="/admin/analytics/ip">ดูรายการ IP →</Link>
+        </p>
+
         <div className="grid gap-4 lg:grid-cols-2">
           <div>
             <h3 className="mb-1 text-sm font-bold">การเข้าชมรายวัน</h3>
@@ -112,7 +130,7 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </div>
         </div>
         <p className="mt-1 text-xs text-wiki-muted">
-          ผู้เข้าชมไม่ซ้ำนับรายวัน (ไม่ใช้คุกกี้) — ยอดรวมหลายวันจึงนับคนเดิมซ้ำได้ถ้าเข้าคนละวัน · ไม่นับบอท/crawler · เวลาไทย
+          กราฟผู้เข้าชมไม่ซ้ำนับรายวันจากทุกคน (ไม่ต้องใช้คุกกี้) — ยอด &ldquo;ผู้เข้าชมไม่ซ้ำ&rdquo; ด้านบนจึงนับคนเดิมซ้ำได้ถ้าเข้าคนละวัน · ไม่นับบอท/crawler · เวลาไทย
         </p>
       </AdminCard>
 

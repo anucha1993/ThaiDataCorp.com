@@ -1,6 +1,6 @@
 /**
  * รับการเข้าชมจาก components/PageTracker (navigator.sendBeacon) — หน้าเว็บส่วนใหญ่เป็น static/ISR
- * จึงนับฝั่ง browser แทนการนับตอน render · ไม่ตั้งคุกกี้ ไม่เก็บ IP (ดู lib/analytics.ts)
+ * จึงนับฝั่ง browser แทนการนับตอน render · IP เก็บ 90 วัน · คุกกี้ tdc_vid เฉพาะผู้ยอมรับคุกกี้สถิติ (ดู lib/analytics.ts)
  */
 import { cookies, headers } from "next/headers";
 import { SESSION_COOKIE } from "@/lib/auth";
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       /* referrer ไม่ใช่ URL */
     }
 
+    const jar = await cookies();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "0";
     const c = classify(url.pathname, url.searchParams);
     // หน้า /search เก็บ path พร้อมคำค้น (ไม่เก็บ query string อื่น เช่น page / ตัวกรอง)
@@ -42,10 +43,13 @@ export async function POST(req: Request) {
       visitor: visitorHash(ip, ua),
       referrer,
       ...parseUa(ua),
-      member: Boolean((await cookies()).get(SESSION_COOKIE)?.value),
+      member: Boolean(jar.get(SESSION_COOKIE)?.value),
+      ip: ip === "0" ? null : ip.slice(0, 45),
+      // ใช้รหัสจากคุกกี้เฉพาะเมื่อผู้ใช้ยอมรับคุกกี้สถิติ
+      vid: jar.get("tdc_consent")?.value === "all" && /^[A-Za-z0-9_-]{22}$/.test(jar.get("tdc_vid")?.value ?? "") ? jar.get("tdc_vid")!.value : null,
     });
-    // ล้างข้อมูลดิบเก่าเป็นครั้งคราว (~1 ใน 2,000 ครั้ง)
-    if (Math.random() < 0.0005) purgeOldViews().catch(() => {});
+    // ตัวสำรองลบ IP/ข้อมูลเก่า (~1 ใน 500 ครั้ง) — งานหลักคือ analytics-cleanup ใน /admin/jobs
+    if (Math.random() < 0.002) purgeOldViews().catch(() => {});
   } catch (e) {
     console.error("[track] failed:", e);
   }
