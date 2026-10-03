@@ -106,11 +106,11 @@ export default async function BusinessPage({ searchParams }: Props) {
           ) : (
             <>
               <p className="mb-3">เข้าสู่ระบบหรือสมัครสมาชิก (ฟรี) ก่อน แล้วยื่นเอกสารยืนยันบริษัท</p>
-              <Link href="/register?next=/business" className={primaryButtonCls}>
-                สมัครสมาชิกฟรี
+              <Link href="/register?as=company" className={primaryButtonCls}>
+                สมัครในนามบริษัท (ฟรี)
               </Link>
               <p className="mt-2">
-                มีบัญชีแล้ว? <Link href="/login?next=/business">เข้าสู่ระบบ</Link>
+                มีบัญชีแล้ว? <Link href="/login?next=/business/claim">เข้าสู่ระบบ</Link>
               </p>
             </>
           )}

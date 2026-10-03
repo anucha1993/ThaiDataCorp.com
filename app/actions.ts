@@ -82,7 +82,11 @@ export async function registerAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const next = safeNext(formData.get("next"));
   const pending = String(formData.get("pending") ?? "").slice(0, 100);
-  const fail: (error: string) => never = (error) => redirect(`/register?${backQuery(error, rawEmail, next, pending)}`);
+  // สมัครในนามบริษัท: สมัครเสร็จแล้วพาไปยื่นเอกสารยืนยันบริษัทต่อทันที
+  const asCompany = formData.get("as") === "company";
+  const juristicId = String(formData.get("juristicId") ?? "").replace(/\D/g, "").slice(0, 13);
+  const fail: (error: string) => never = (error) =>
+    redirect(`/register?${backQuery(error, rawEmail, next, pending)}${asCompany ? `&as=company${juristicId ? `&id=${juristicId}` : ""}` : ""}`);
   if (!email) fail("email");
   const problem = passwordProblem(password);
   if (problem) fail(problem);
@@ -90,7 +94,7 @@ export async function registerAction(formData: FormData) {
   if (formData.get("accept") !== "1") fail("terms");
   const res = await registerWithPassword(email, password);
   if ("error" in res) fail(res.error);
-  await finishLogin(res.userId, pending, next);
+  await finishLogin(res.userId, pending, asCompany ? `/business/claim${juristicId.length === 13 ? `?id=${juristicId}` : ""}` : next);
 }
 
 export async function changePassword(formData: FormData) {
