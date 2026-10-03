@@ -39,7 +39,8 @@ function sniff(buf: Buffer): "pdf" | "jpg" | "png" | "webp" | "gif" | null {
   return null;
 }
 
-export type UploadError = "empty" | "too-large" | "bad-type" | "bad-image";
+/** storage = เขียนไฟล์ไม่ได้ (สิทธิ์โฟลเดอร์ / R2) — รายละเอียดอยู่ใน log ของเซิร์ฟเวอร์ */
+export type UploadError = "empty" | "too-large" | "bad-type" | "bad-image" | "storage";
 
 /**
  * รูปภาพสาธารณะ (โลโก้ / รูปข่าว): ตรวจชนิดจากเนื้อไฟล์จริง → ย่อ → แปลงเป็น WebP (ตัด EXIF/GPS ทิ้ง)
@@ -62,11 +63,16 @@ export async function saveImage(file: File, kind: "logo" | "news" | "job", maxSi
     return { error: "bad-image" };
   }
   const name = `${kind}/${randomUUID()}.webp`;
-  if (isR2Configured()) {
-    await r2Put(name, out, "image/webp", "public, max-age=31536000, immutable");
-  } else {
-    await mkdir(path.join(PUBLIC_DIR, kind), { recursive: true });
-    await writeFile(path.join(PUBLIC_DIR, name), out);
+  try {
+    if (isR2Configured()) {
+      await r2Put(name, out, "image/webp", "public, max-age=31536000, immutable");
+    } else {
+      await mkdir(path.join(PUBLIC_DIR, kind), { recursive: true });
+      await writeFile(path.join(PUBLIC_DIR, name), out);
+    }
+  } catch (e) {
+    console.error(`[uploads] save image failed (${isR2Configured() ? "R2" : PUBLIC_DIR}):`, e);
+    return { error: "storage" };
   }
   return { name };
 }
@@ -79,8 +85,13 @@ export async function saveDocument(file: File): Promise<{ name: string } | { err
   const type = sniff(buf);
   if (type !== "pdf" && type !== "jpg" && type !== "png") return { error: "bad-type" };
   const name = `claims/${randomUUID()}.${type}`;
-  await mkdir(path.join(PRIVATE_DIR, "claims"), { recursive: true });
-  await writeFile(path.join(PRIVATE_DIR, name), buf);
+  try {
+    await mkdir(path.join(PRIVATE_DIR, "claims"), { recursive: true });
+    await writeFile(path.join(PRIVATE_DIR, name), buf);
+  } catch (e) {
+    console.error(`[uploads] save document failed (${PRIVATE_DIR}):`, e);
+    return { error: "storage" };
+  }
   return { name };
 }
 
@@ -108,3 +119,30 @@ export async function deleteStored(scope: "public" | "private", name: string | n
 }
 
 export const mediaUrl = (name: string | null | undefined) => (name ? `/media/${name}` : null);
+
+/** ตรวจระบบเก็บไฟล์ (หน้า /admin/settings): เขียน-ลบไฟล์ทดสอบจริง */
+export async function checkStorage(): Promise<Array<{ k: string; ok: boolean; detail: string }>> {
+  const out: Array<{ k: string; ok: boolean; detail: string }> = [];
+  try {
+    await mkdir(PRIVATE_DIR, { recursive: true });
+    const f = path.join(PRIVATE_DIR, `.write-test-${randomUUID()}`);
+    await writeFile(f, "ok");
+    await unlink(f);
+    out.push({ k: "โฟลเดอร์เอกสาร (เขียนได้)", ok: true, detail: PRIVATE_DIR });
+  } catch (e) {
+    out.push({ k: "โฟลเดอร์เอกสาร (เขียนได้)", ok: false, detail: `${PRIVATE_DIR} — ${(e as Error).message}` });
+  }
+  if (isR2Configured()) {
+    const key = `health/${randomUUID()}.txt`;
+    try {
+      await r2Put(key, Buffer.from("ok"), "text/plain");
+      await r2Delete(key);
+      out.push({ k: "Cloudflare R2 (รูปภาพ)", ok: true, detail: `bucket ${process.env.R2_BUCKET}` });
+    } catch (e) {
+      out.push({ k: "Cloudflare R2 (รูปภาพ)", ok: false, detail: (e as Error).message });
+    }
+  } else {
+    out.push({ k: "Cloudflare R2 (รูปภาพ)", ok: false, detail: "ยังไม่ได้ตั้ง R2_* — รูปจะเก็บในเครื่อง" });
+  }
+  return out;
+}

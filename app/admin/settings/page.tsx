@@ -4,14 +4,16 @@ import { Notice, inputCls, primaryButtonCls } from "@/components/Panel";
 import { isMailConfigured } from "@/lib/mailer";
 import { getSetting, SETTINGS } from "@/lib/settings";
 import { getPlans } from "@/lib/plans";
+import { checkStorage } from "@/lib/uploads";
 
 type Props = { searchParams: Promise<{ ok?: string }> };
 
 export default async function SettingsPage({ searchParams }: Props) {
   const q = await searchParams;
-  const [values, plans] = await Promise.all([
+  const [values, plans, storage] = await Promise.all([
     Promise.all(SETTINGS.map(async (s) => [s.key, (await getSetting(s.key)) ?? ""] as const)).then(Object.fromEntries),
     getPlans(),
+    checkStorage(),
   ]);
 
   const envStatus = [
@@ -68,6 +70,18 @@ export default async function SettingsPage({ searchParams }: Props) {
           ))}
         </ul>
         <p className="mt-2 text-xs text-wiki-muted">ค่าลับ (รหัสผ่าน DB/SMTP, API key) เก็บใน env เท่านั้น ไม่แสดงและไม่แก้จากหน้าเว็บ</p>
+      </AdminCard>
+      <AdminCard title="ตรวจระบบเก็บไฟล์ (ทดสอบเขียน-ลบจริงทุกครั้งที่เปิดหน้านี้)">
+        <ul className="space-y-1 text-sm">
+          {storage.map((c) => (
+            <li key={c.k}>
+              {c.ok ? "✅" : "❌"} {c.k} <span className="text-xs text-wiki-muted">— {c.detail}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-xs text-wiki-muted">
+          ถ้าโฟลเดอร์เอกสารเขียนไม่ได้: ตั้ง STORAGE_DIR ใน env ให้ชี้โฟลเดอร์ที่แอปมีสิทธิ์เขียน (แนะนำ /var/www/vhosts/โดเมน/private/storage) แล้ว Restart App
+        </p>
       </AdminCard>
     </>
   );

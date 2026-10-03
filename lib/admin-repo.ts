@@ -115,12 +115,24 @@ export async function getRun(id: number) {
 
 /* -------------------------------- Members --------------------------------- */
 
-export async function listMembers(opts: { q?: string; plan?: string; page?: number }) {
+/**
+ * role: member = สมาชิกทั่วไป (ไม่ใช่ผู้ดูแล) · business = ดูแลบัญชีบริษัทอย่างน้อย 1 บริษัท · admin = ผู้ดูแลระบบ
+ * admins: อีเมลผู้ดูแลทั้งหมด (จาก ADMIN_EMAILS + ตั้งค่า) — ผู้ดูแลเป็นบัญชีสมาชิกที่อีเมลอยู่ในรายชื่อนี้
+ */
+export async function listMembers(opts: { q?: string; plan?: string; page?: number; role?: string; admins?: string[] }) {
   const where: string[] = ["1=1"];
   const params: unknown[] = [];
+  const admins = opts.admins?.length ? opts.admins : ["__none__"];
+  if (opts.role === "admin") (where.push(`LOWER(u.email) IN (${admins.map(() => "?").join(",")})`), params.push(...admins));
+  else {
+    where.push(`LOWER(u.email) NOT IN (${admins.map(() => "?").join(",")})`);
+    params.push(...admins);
+    if (opts.role === "business") where.push("EXISTS (SELECT 1 FROM company_member cm WHERE cm.user_id = u.id)");
+  }
   if (opts.q) (where.push("u.email LIKE ?"), params.push(`%${opts.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`));
   if (opts.plan === "paying") where.push("u.plan <> 'free' AND u.plan_expires_at > NOW()");
   else if (opts.plan === "expired") where.push("u.plan <> 'free' AND (u.plan_expires_at IS NULL OR u.plan_expires_at <= NOW())");
+  else if (opts.plan === "suspended") where.push("u.suspended_at IS NOT NULL");
   else if (opts.plan) (where.push("u.plan = ?"), params.push(opts.plan));
   const size = 50;
   const offset = (Math.max(1, opts.page ?? 1) - 1) * size;
@@ -130,7 +142,8 @@ export async function listMembers(opts: { q?: string; plan?: string; page?: numb
          (SELECT COUNT(*) FROM user_watch w WHERE w.user_id = u.id) watches,
          (SELECT COUNT(*) FROM saved_search s WHERE s.user_id = u.id) searches,
          (SELECT COALESCE(SUM(amount), 0) FROM payment_order o WHERE o.user_id = u.id AND o.status = 'paid') paid_total,
-         (SELECT MAX(created_at) FROM user_session x WHERE x.user_id = u.id) last_login
+         (SELECT MAX(created_at) FROM user_session x WHERE x.user_id = u.id) last_login,
+         (SELECT COUNT(*) FROM company_member cm WHERE cm.user_id = u.id) companies
        FROM app_user u WHERE ${where.join(" AND ")} ORDER BY u.id DESC LIMIT ? OFFSET ?`,
       [...params, size, offset],
     ),
@@ -196,4 +209,14 @@ export async function listPlanRows() {
        (SELECT COUNT(*) FROM app_user u WHERE u.trial_plan = p.id) trials_total
      FROM plan p ORDER BY sort, price`,
   );
+}
+
+/** ระงับบัญชี: บันทึกเหตุผล + ออกจากระบบทุกอุปกรณ์ */
+export async function suspendMember(id: number, reason: string, adminId: number) {
+  await dbQuery(`UPDATE app_user SET suspended_at = NOW(), suspended_reason = ?, suspended_by = ? WHERE id = ?`, [reason, adminId, id]);
+  await dbQuery(`DELETE FROM user_session WHERE user_id = ?`, [id]);
+}
+
+export async function unsuspendMember(id: number) {
+  await dbQuery(`UPDATE app_user SET suspended_at = NULL, suspended_reason = NULL, suspended_by = NULL WHERE id = ?`, [id]);
 }

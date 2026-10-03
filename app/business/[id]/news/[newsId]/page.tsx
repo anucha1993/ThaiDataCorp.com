@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { saveNews } from "@/app/business/actions";
 import FileGuard from "@/components/FileGuard";
+import FilePicker from "@/components/FilePicker";
 import Panel, { inputCls, Notice, primaryButtonCls } from "@/components/Panel";
 import { requireUser } from "@/lib/auth";
 import { getNews, isCompanyMember, postsThisMonth, quotas } from "@/lib/business";
@@ -19,6 +20,7 @@ const ERRORS: Record<string, string> = {
   "image-too-large": "รูปใหญ่เกิน 3MB",
   "image-bad-type": "รูปต้องเป็น JPG, PNG หรือ WebP",
   "image-bad-image": "อ่านไฟล์รูปไม่ได้",
+  "image-storage": "บันทึกรูปไม่สำเร็จ (ปัญหาฝั่งเซิร์ฟเวอร์) กรุณาลองใหม่ภายหลัง",
 };
 
 export default async function NewsFormPage({ params, searchParams }: Props) {
@@ -54,11 +56,11 @@ export default async function NewsFormPage({ params, searchParams }: Props) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt="รูปปัจจุบัน" className="h-20 border border-wiki-border-light object-cover" />
           )}
-          <label className="flex flex-col gap-1">
-            รูปประกอบ (ไม่บังคับ · JPG / PNG / WebP ไม่เกิน 3MB)
-            <input type="file" name="image" data-max-mb="3" data-max-files="1" data-types="image/jpeg,image/png,image/webp" accept="image/jpeg,image/png,image/webp" />
+          <div className="flex min-w-72 flex-1 flex-col gap-1">
+            <b>รูปประกอบข่าว (ไม่บังคับ)</b>
+            <FilePicker name="image" accept="image/jpeg,image/png,image/webp" types="image/jpeg,image/png,image/webp" maxMb={3} hint="JPG, PNG, WebP · ไม่เกิน 3MB · ย่อเป็น 1200px อัตโนมัติ" />
             <FileGuard />
-          </label>
+          </div>
           {image && (
             <label className="flex items-center gap-1">
               <input type="checkbox" name="removeImage" value="1" /> ลบรูป

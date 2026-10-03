@@ -55,7 +55,7 @@ export function safeNext(raw: unknown, fallback = "/account"): string {
 }
 
 /** ผู้ดูแล = ADMIN_EMAILS (env, เข้าได้เสมอ) + extra_admin_emails (ตั้งในหน้า /admin/settings) */
-async function adminEmails(): Promise<Set<string>> {
+export async function adminEmails(): Promise<Set<string>> {
   const extra = (await getSetting("extra_admin_emails")) ?? "";
   return new Set(
     `${process.env.ADMIN_EMAILS ?? ""},${extra}`.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean),
@@ -106,9 +106,9 @@ export async function registerWithPassword(
 export async function loginWithPassword(
   email: string,
   password: string,
-): Promise<{ userId: number } | { error: "invalid" | "locked" | "no-password" | "social-only" }> {
+): Promise<{ userId: number } | { error: "invalid" | "locked" | "no-password" | "social-only" | "suspended" }> {
   const [u] = await dbQuery<RowDataPacket[]>(
-    `SELECT id, password_hash, failed_logins,
+    `SELECT id, password_hash, failed_logins, suspended_at,
        (last_failed_login_at > NOW() - INTERVAL ? MINUTE) recent_fail,
        (SELECT COUNT(*) FROM user_identity i WHERE i.user_id = app_user.id) identities
      FROM app_user WHERE email = ?`,
@@ -126,6 +126,7 @@ export async function loginWithPassword(
     }
     return { error: "invalid" };
   }
+  if (u.suspended_at) return { error: "suspended" };
   if (Number(u.failed_logins) > 0) await dbQuery(`UPDATE app_user SET failed_logins = 0 WHERE id = ?`, [u.id]);
   return { userId: Number(u.id) };
 }
@@ -171,7 +172,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const rows = await dbQuery<RowDataPacket[]>(
     `SELECT u.id, u.email, u.display_name, u.plan, u.plan_expires_at, u.on_trial, u.trial_used_at, (u.password_hash IS NOT NULL) has_pw,
        (u.plan_expires_at IS NOT NULL AND u.plan_expires_at > NOW()) active
-     FROM user_session s JOIN app_user u ON u.id = s.user_id WHERE s.id_hash = ? AND s.expires_at > NOW()`,
+     FROM user_session s JOIN app_user u ON u.id = s.user_id WHERE s.id_hash = ? AND s.expires_at > NOW() AND u.suspended_at IS NULL`,
     [sha256(token)],
   );
   const u = rows[0];
@@ -197,4 +198,10 @@ export async function requireUser(next: string): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
   return user;
+}
+
+/** บัญชีถูกระงับหรือไม่ (ใช้ตอนเข้าสู่ระบบด้วย Google) — คืนเหตุผล หรือ null ถ้าไม่ได้ระงับ */
+export async function suspensionOf(userId: number): Promise<string | null> {
+  const [r] = await dbQuery<RowDataPacket[]>(`SELECT suspended_at, suspended_reason FROM app_user WHERE id = ?`, [userId]);
+  return r?.suspended_at ? (r.suspended_reason ?? "") : null;
 }

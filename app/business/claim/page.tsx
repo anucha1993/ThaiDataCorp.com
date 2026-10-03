@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { submitClaim } from "@/app/business/actions";
 import FileGuard from "@/components/FileGuard";
+import FilePicker from "@/components/FilePicker";
 import Panel, { inputCls, Notice, primaryButtonCls } from "@/components/Panel";
 import { getCompany } from "@/lib/api";
 import { requireUser } from "@/lib/auth";
@@ -25,6 +26,7 @@ const ERRORS: Record<string, string> = {
   "file-too-large": "ไฟล์ใหญ่เกิน 10MB",
   "file-bad-type": "รองรับเฉพาะไฟล์ PDF, JPG และ PNG",
   "file-empty": "ไฟล์ว่าง",
+  "file-storage": "ระบบบันทึกไฟล์ไม่สำเร็จ (ปัญหาฝั่งเซิร์ฟเวอร์) — ผู้ดูแลได้รับแจ้งใน log แล้ว กรุณาลองใหม่ภายหลังหรือติดต่อเรา",
   "file-total": "ไฟล์รวมกันใหญ่เกิน 20MB — ลดขนาดหรือสแกนความละเอียดต่ำลง",
 };
 
@@ -78,14 +80,14 @@ export default async function ClaimPage({ searchParams }: Props) {
 
           <fieldset className="space-y-3 border border-wiki-border-light p-4">
             <legend className="px-1 font-bold">เอกสาร (PDF / JPG / PNG ไม่เกิน 10MB ต่อไฟล์)</legend>
-            <label className="flex flex-col gap-1">
-              1. หนังสือรับรองนิติบุคคล อายุไม่เกิน 6 เดือน
-              <input type="file" name="certificate" required data-max-mb="10" data-types="application/pdf,image/jpeg,image/png" data-max-files="1" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
-            </label>
-            <label className="flex flex-col gap-1">
-              2. สำเนาบัตรประชาชนกรรมการผู้มีอำนาจ — หรือ หนังสือมอบอำนาจ + สำเนาบัตรผู้รับมอบอำนาจ (เลือกได้หลายไฟล์ สูงสุด 4)
-              <input type="file" name="identity" required multiple data-max-mb="10" data-types="application/pdf,image/jpeg,image/png" data-max-files="4" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" />
-            </label>
+            <div className="flex flex-col gap-1">
+              <b>1. หนังสือรับรองนิติบุคคล อายุไม่เกิน 6 เดือน</b>
+              <FilePicker name="certificate" required accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" types="application/pdf,image/jpeg,image/png" maxMb={10} maxFiles={1} hint="PDF, JPG, PNG · 1 ไฟล์ · ไม่เกิน 10MB" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <b>2. สำเนาบัตรประชาชนกรรมการผู้มีอำนาจ — หรือ หนังสือมอบอำนาจ + สำเนาบัตรผู้รับมอบอำนาจ</b>
+              <FilePicker name="identity" required multiple accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" types="application/pdf,image/jpeg,image/png" maxMb={10} maxFiles={4} hint="PDF, JPG, PNG · สูงสุด 4 ไฟล์ · ไฟล์ละไม่เกิน 10MB" />
+            </div>
             <FileGuard totalMb={20} />
             <p className="text-xs text-wiki-muted">
               ขนาดรวมทุกไฟล์ไม่เกิน 20MB · โปรดเขียนกำกับสำเนาว่า &ldquo;ใช้ยืนยันตัวตนกับ ThaiDataCorp เท่านั้น&rdquo; และปิดข้อมูลที่ไม่จำเป็น เช่น วันเกิด

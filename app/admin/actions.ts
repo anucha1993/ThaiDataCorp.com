@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireUser, setUserPassword } from "@/lib/auth";
+import { adminEmails, requireUser, setUserPassword } from "@/lib/auth";
 import { passwordProblem } from "@/lib/password";
 import {
   deleteMember,
@@ -14,6 +14,8 @@ import {
   getRun,
   revokeSessions,
   setMemberPlan,
+  suspendMember,
+  unsuspendMember,
 } from "@/lib/admin-repo";
 import { dbQuery } from "@/lib/db";
 import { isValidCron, jobByKey, nextRunUtc, parseArgs } from "@/lib/jobs";
@@ -139,9 +141,16 @@ export async function adminSetPassword(formData: FormData) {
   redirect(`/admin/members/${id}?ok=password`);
 }
 
+/** บัญชีผู้ดูแลลบ/ระงับจากหน้านี้ไม่ได้ — ต้องถอดอีเมลออกจากรายชื่อผู้ดูแลก่อน */
+async function isAdminAccount(id: number): Promise<boolean> {
+  const [r] = await dbQuery<import("mysql2").RowDataPacket[]>(`SELECT email FROM app_user WHERE id = ?`, [id]);
+  return Boolean(r) && (await adminEmails()).has(String(r.email).toLowerCase());
+}
+
 export async function adminDeleteMember(formData: FormData) {
   const me = await requireAdmin();
   const id = int(formData, "id", 1);
+  if (await isAdminAccount(id)) redirect(`/admin/members/${id}?error=is-admin`);
   if (str(formData, "confirm") !== "DELETE") redirect(`/admin/members/${id}?error=confirm`);
   if (id === me.id) redirect(`/admin/members/${id}?error=self`);
   await deleteMember(id);
@@ -320,4 +329,22 @@ export async function adminCompanyAccess(formData: FormData) {
   revalidatePath("/jobs");
   revalidatePath("/news");
   redirect(`/admin/business?tab=companies`);
+}
+
+export async function adminSuspendMember(formData: FormData) {
+  const me = await requireAdmin();
+  const id = int(formData, "id", 1);
+  const reason = str(formData, "reason").slice(0, 500);
+  if (id === me.id) redirect(`/admin/members/${id}?error=self`);
+  if (await isAdminAccount(id)) redirect(`/admin/members/${id}?error=is-admin`);
+  if (reason.length < 3) redirect(`/admin/members/${id}?error=reason`);
+  await suspendMember(id, reason, me.id);
+  redirect(`/admin/members/${id}?ok=suspended`);
+}
+
+export async function adminUnsuspendMember(formData: FormData) {
+  await requireAdmin();
+  const id = int(formData, "id", 1);
+  await unsuspendMember(id);
+  redirect(`/admin/members/${id}?ok=unsuspended`);
 }

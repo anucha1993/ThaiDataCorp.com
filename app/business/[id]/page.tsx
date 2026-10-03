@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { removeNewsPost, saveCompanyProfile, toggleJob } from "@/app/business/actions";
 import FileGuard from "@/components/FileGuard";
+import FilePicker from "@/components/FilePicker";
 import Panel, { buttonCls, inputCls, Notice, primaryButtonCls } from "@/components/Panel";
 import { requireUser } from "@/lib/auth";
 import { EMPLOYMENT_TYPES, getProfile, isCompanyMember, listCompanyJobs, listCompanyNews, postsThisMonth, quotas } from "@/lib/business";
@@ -33,6 +34,7 @@ const MSG: Record<string, { tone: "ok" | "error"; text: string }> = {
   "error:logo-too-large": { tone: "error", text: "โลโก้ใหญ่เกิน 3MB" },
   "error:logo-bad-type": { tone: "error", text: "โลโก้ต้องเป็น JPG, PNG หรือ WebP" },
   "error:logo-bad-image": { tone: "error", text: "อ่านไฟล์รูปไม่ได้" },
+  "error:logo-storage": { tone: "error", text: "บันทึกรูปไม่สำเร็จ (ปัญหาฝั่งเซิร์ฟเวอร์) กรุณาลองใหม่ภายหลัง" },
 };
 
 export default async function CompanyDashboard({ params, searchParams }: Props) {
@@ -82,11 +84,11 @@ export default async function CompanyDashboard({ params, searchParams }: Props) 
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logo} alt="โลโก้ปัจจุบัน" className="h-16 w-16 border border-wiki-border-light object-contain" />
             )}
-            <label className="flex flex-col gap-1">
-              โลโก้ (JPG / PNG / WebP ไม่เกิน 3MB — ย่อเป็น 400px อัตโนมัติ)
-              <input type="file" name="logo" data-max-mb="3" data-max-files="1" data-types="image/jpeg,image/png,image/webp" accept="image/jpeg,image/png,image/webp" />
+            <div className="flex min-w-72 flex-1 flex-col gap-1">
+              <b>โลโก้บริษัท</b>
+              <FilePicker name="logo" accept="image/jpeg,image/png,image/webp" types="image/jpeg,image/png,image/webp" maxMb={3} hint="JPG, PNG, WebP · ไม่เกิน 3MB · ย่อเป็น 400px อัตโนมัติ" />
               <FileGuard />
-            </label>
+            </div>
             {logo && (
               <label className="flex items-center gap-1">
                 <input type="checkbox" name="removeLogo" value="1" /> ลบโลโก้

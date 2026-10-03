@@ -525,3 +525,9 @@ INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('backup-u
 
 -- v21: รูปประกอบประกาศงาน (เก็บที่ R2 / storage)
 ALTER TABLE job_post ADD COLUMN IF NOT EXISTS image VARCHAR(120) NULL AFTER benefits;
+
+-- v22: ระงับบัญชีสมาชิก (พร้อมเหตุผล)
+ALTER TABLE app_user
+  ADD COLUMN IF NOT EXISTS suspended_at     DATETIME     NULL,
+  ADD COLUMN IF NOT EXISTS suspended_reason VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS suspended_by     INT          NULL;

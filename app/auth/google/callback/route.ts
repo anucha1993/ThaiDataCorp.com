@@ -1,7 +1,7 @@
 /** Google ส่งผู้ใช้กลับมาที่นี่หลังอนุญาต (หรือปฏิเสธ) */
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createSessionForUser, getCurrentUser, safeNext, setSessionCookie } from "@/lib/auth";
+import { createSessionForUser, getCurrentUser, safeNext, setSessionCookie, suspensionOf } from "@/lib/auth";
 import { googleExchangeCode, googleProfile } from "@/lib/google";
 import { linkIdentity, loginWithExternal } from "@/lib/identity";
 import { googleRedirectUri, OAUTH_COOKIE } from "@/app/auth/google/redirect-uri";
@@ -52,6 +52,7 @@ export async function GET(req: Request) {
     if (result.email) q.set("email", result.email);
     redirect(`/login?${q}`);
   }
+  if ((await suspensionOf(result.userId)) !== null) redirect("/login?error=suspended");
   await setSessionCookie(await createSessionForUser(result.userId));
   redirect(safeNext(saved.next));
 }
