@@ -7,6 +7,10 @@ import ProcurementSection from "@/components/ProcurementSection";
 import SignalsSection from "@/components/SignalsSection";
 import SameAddressSection from "@/components/SameAddressSection";
 import ExternalLookup from "@/components/ExternalLookup";
+import CompanyContact from "@/components/CompanyContact";
+import ViewsBox from "@/components/ViewsChart";
+import { getEntityDaily } from "@/lib/analytics";
+import { getJuristicContact } from "@/lib/support";
 import WatchButton from "@/components/WatchButton";
 import { memberToolNote } from "@/lib/billing";
 import StatusBadge from "@/components/StatusBadge";
@@ -95,6 +99,10 @@ export default async function CompanyPage({ params }: PageProps) {
 
   const data = await getCompany(id);
   if (!data) notFound();
+  const [contact, views] =
+    getProvider() === "db"
+      ? await Promise.all([getJuristicContact(id).catch(() => null), getEntityDaily("company", id, 30).catch(() => null)])
+      : [null, null];
 
   const { profile, directors, shareholders, financials, authorizedSignatory } = data;
   const hasPeople = directors.length > 0 || shareholders.length > 0;
@@ -163,6 +171,7 @@ export default async function CompanyPage({ params }: PageProps) {
             {/* Infobox: มือถือแสดงก่อนเนื้อหา, จอใหญ่อยู่ขวา (sticky) */}
             <div className="lg:col-start-2 lg:row-start-1">
               <WikipediaInfobox profile={profile} linkTsic={getProvider() === "db"} procurement={data.procurement} />
+              {views && <ViewsBox title="สถิติการเข้าชม 30 วันล่าสุด" data={views} />}
             </div>
 
             <div className="min-w-0 lg:col-start-1 lg:row-start-1">
@@ -176,6 +185,7 @@ export default async function CompanyPage({ params }: PageProps) {
                     <b>วัตถุประสงค์ตามที่จดทะเบียน:</b> {profile.objective}
                   </p>
                 )}
+                <CompanyContact id={profile.id} contact={contact} />
                 <ExternalLookup profile={profile} />
               </section>
 

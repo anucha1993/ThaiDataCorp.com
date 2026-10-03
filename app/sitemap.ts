@@ -34,6 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/agency",
     "/pricing",
     "/terms",
+    "/contact",
     "/data-deletion",
     ...provinces.map((p) => procurementUrl(p.province)),
     ...agencies.map(agencyUrl),

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Panel from "@/components/Panel";
 import { SITE_NAME } from "@/lib/format";
-import { getSetting } from "@/lib/settings";
+import { getSupportEmail } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "การลบข้อมูลผู้ใช้",
@@ -14,7 +14,7 @@ export const revalidate = 3600;
 
 /** วิธีลบข้อมูลของสมาชิก (ลิงก์จาก /terms) */
 export default async function DataDeletionPage() {
-  const email = (await getSetting("support_email")) || "privacy@thaidatacorp.com";
+  const email = await getSupportEmail();
   return (
     <Panel title="การลบข้อมูลผู้ใช้" crumbs={[{ label: "การลบข้อมูล" }]}>
       <div className="space-y-4 text-sm leading-7">

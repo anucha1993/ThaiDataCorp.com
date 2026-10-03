@@ -18,7 +18,10 @@ import {
 import { dbQuery } from "@/lib/db";
 import { isValidCron, jobByKey, nextRunUtc, parseArgs } from "@/lib/jobs";
 import { FREE_PLAN_ID, getPlans, invalidatePlans, isValidPlanSlug } from "@/lib/plans";
-import { SETTINGS, setSettings } from "@/lib/settings";
+import { getSupportEmail, SETTINGS, setSettings } from "@/lib/settings";
+import { SITE_NAME, SITE_URL } from "@/lib/format";
+import { isMailConfigured, sendMail } from "@/lib/mailer";
+import { cleanContact, getRequest, isRequestStatus, publishContact, removeContact, REQUEST_STATUS, REQUEST_TYPES, updateRequest } from "@/lib/support";
 
 async function requireAdmin() {
   const user = await requireUser("/admin");
@@ -206,4 +209,58 @@ export async function saveSettings(formData: FormData) {
   invalidatePlans();
   revalidatePath("/", "layout"); // header/หน้าราคาเปลี่ยนตามโหมด
   redirect("/admin/settings?ok=saved");
+}
+
+/* -------------------------------------------------------------- คำร้อง */
+
+export async function adminUpdateRequest(formData: FormData) {
+  await requireAdmin();
+  const id = int(formData, "id", 1);
+  const status = str(formData, "status");
+  const r = await getRequest(id);
+  if (!r || !isRequestStatus(status)) redirect(`/admin/requests/${id}?error=status`);
+  await updateRequest(id, status, str(formData, "note").slice(0, 5000) || null);
+
+  // แจ้งผู้ส่งทางอีเมล (ถ้าเลือกและตั้ง SMTP แล้ว)
+  const reply = str(formData, "reply").slice(0, 5000);
+  if (formData.get("notify") === "1" && isMailConfigured()) {
+    const support = await getSupportEmail();
+    await sendMail({
+      to: r.email,
+      subject: `[${r.ticket}] ${REQUEST_STATUS[status].label} — ${SITE_NAME}`,
+      text:
+        `เรียน คุณ${r.name}\n\nคำร้อง "${REQUEST_TYPES[r.type]?.label ?? r.type}" เลขที่ ${r.ticket}\n` +
+        `สถานะ: ${REQUEST_STATUS[status].label}\n${reply ? `\n${reply}\n` : ""}\n` +
+        `ติดตามสถานะ: ${SITE_URL}/contact/status?ticket=${r.ticket}\n\n${SITE_NAME}\n${support}`,
+    }).catch((e) => console.error("[admin] notify requester failed:", e));
+  }
+  redirect(`/admin/requests/${id}?ok=updated`);
+}
+
+/** เผยแพร่ข้อมูลติดต่อบนหน้าบริษัท (แก้ค่าก่อนเผยแพร่ได้) แล้วปิดคำร้อง */
+export async function adminPublishContact(formData: FormData) {
+  await requireAdmin();
+  const id = int(formData, "id", 1);
+  const r = await getRequest(id);
+  if (!r?.juristicId) redirect(`/admin/requests/${id}?error=nocompany`);
+  const c = cleanContact({
+    phone: str(formData, "phone"), email: str(formData, "email"), website: str(formData, "website"),
+    lineId: str(formData, "lineId"), facebook: str(formData, "facebook"),
+  });
+  if ("error" in c) redirect(`/admin/requests/${id}?error=${c.error}`);
+  await publishContact(r.juristicId, c.contact, r.ticket);
+  await updateRequest(id, "resolved", r.adminNote ? `${r.adminNote}\nเผยแพร่ข้อมูลติดต่อแล้ว` : "เผยแพร่ข้อมูลติดต่อแล้ว");
+  revalidatePath(`/company/${r.juristicId}`);
+  redirect(`/admin/requests/${id}?ok=published`);
+}
+
+export async function adminRemoveContact(formData: FormData) {
+  await requireAdmin();
+  const id = int(formData, "id", 1);
+  const juristicId = str(formData, "juristicId");
+  if (/^\d{13}$/.test(juristicId)) {
+    await removeContact(juristicId);
+    revalidatePath(`/company/${juristicId}`);
+  }
+  redirect(`/admin/requests/${id}?ok=removed`);
 }

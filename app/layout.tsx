@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { Sarabun } from "next/font/google";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import PageTracker from "@/components/PageTracker";
+import { Suspense } from "react";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/format";
 import "./globals.css";
 
@@ -52,6 +54,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           {children}
         </div>
         <Footer />
+        {/* useSearchParams ต้องอยู่ใน Suspense เพื่อไม่ให้หน้า static กลายเป็น dynamic */}
+        <Suspense fallback={null}>
+          <PageTracker />
+        </Suspense>
       </body>
     </html>
   );

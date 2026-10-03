@@ -7,6 +7,7 @@
  *   SMTP_USER=no-reply@thaidatacorp.com
  *   SMTP_PASS="..."
  *   MAIL_FROM="ThaiDataCorp <no-reply@thaidatacorp.com>"
+ *   MAIL_REPLY_TO=info@thaidatacorp.com   # ไม่บังคับ — ปลายทางเมื่อผู้รับกดตอบกลับ
  *
  * ถ้ายังไม่ได้ตั้งค่า: โหมดพัฒนาจะพิมพ์อีเมลลง console แทนการส่ง (isMailConfigured() = false)
  */
@@ -43,6 +44,8 @@ export async function sendMail(mail: Mail): Promise<void> {
   }
   await transporter().sendMail({
     from: process.env.MAIL_FROM ?? process.env.SMTP_USER,
+    // ผู้รับกดตอบกลับ → ไปที่อีเมลติดต่อของเว็บ (เช่น info@) แม้ส่งผ่าน Gmail
+    ...(process.env.MAIL_REPLY_TO && { replyTo: process.env.MAIL_REPLY_TO }),
     to: mail.to,
     subject: mail.subject,
     text: mail.text,

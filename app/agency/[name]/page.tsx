@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import WinnerTable from "@/components/WinnerTable";
 import { ContractFields, FilterBox } from "@/components/FilterForms";
+import ViewsBox from "@/components/ViewsChart";
+import { getEntityDaily } from "@/lib/analytics";
 import { listContractProvinces } from "@/lib/procurement-search";
 import WatchButton from "@/components/WatchButton";
 import { memberToolNote } from "@/lib/billing";
@@ -51,11 +53,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function AgencyPage({ params }: Props) {
   const a = await load((await params).name);
   if (!a) notFound();
-  const [winners, methods, latest, contractProvinces] = await Promise.all([
+  const [winners, methods, latest, contractProvinces, views] = await Promise.all([
     getAgencyTopWinners(a.agency, 50),
     getAgencyMethods(a.agency),
     getAgencyLatest(a.agency, 50),
     listContractProvinces(),
+    getEntityDaily("agency", a.agency, 30).catch(() => null),
   ]);
   const top5Share = a.totalValue > 0 ? (winners.slice(0, 5).reduce((s, w) => s + w.value, 0) / a.totalValue) * 100 : 0;
   const pageUrl = `${SITE_URL}${agencyUrl(a.agency)}`;
@@ -143,6 +146,7 @@ export default async function AgencyPage({ params }: Props) {
                 ))}
               </tbody>
             </table>
+            {views && <ViewsBox title="สถิติการเข้าชม 30 วันล่าสุด" data={views} />}
           </aside>
 
           <div className="min-w-0 lg:col-start-1 lg:row-start-1">

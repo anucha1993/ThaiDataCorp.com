@@ -30,7 +30,7 @@ export const SETTINGS: SettingDef[] = [
   },
   { key: "promptpay_id", label: "PromptPay ที่รับเงิน", help: "เบอร์มือถือ 10 หลัก หรือเลขนิติบุคคล/ผู้เสียภาษี 13 หลัก", env: "PROMPTPAY_ID" },
   { key: "promptpay_name", label: "ชื่อบัญชี PromptPay", help: "ชื่อที่ลูกค้าเห็นในหน้าชำระเงิน", env: "PROMPTPAY_NAME" },
-  { key: "support_email", label: "อีเมลติดต่อ/ร้องเรียน", help: "แสดงในหน้าเงื่อนไขและ footer", env: "SUPPORT_EMAIL" },
+  { key: "support_email", label: "อีเมลติดต่อ/ร้องเรียน", help: "แสดงทั้งเว็บ และรับแจ้งเตือนคำร้องใหม่ (ว่าง = info@thaidatacorp.com)", env: "SUPPORT_EMAIL" },
   { key: "extra_admin_emails", label: "ผู้ดูแลเพิ่มเติม", help: "อีเมลคั่นด้วย , (ผู้ดูแลใน ADMIN_EMAILS ของ env เข้าได้เสมอ)" },
 ];
 
@@ -65,4 +65,11 @@ export async function setSettings(values: Record<string, string>): Promise<void>
     ]);
   }
   g.__tdcSettings = undefined;
+}
+
+export const DEFAULT_SUPPORT_EMAIL = "info@thaidatacorp.com";
+
+/** อีเมลติดต่อ/ร้องเรียนที่แสดงบนเว็บ และรับแจ้งเตือนคำร้องใหม่ */
+export async function getSupportEmail(): Promise<string> {
+  return (await getSetting("support_email")) || DEFAULT_SUPPORT_EMAIL;
 }

@@ -3,12 +3,15 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { countOpenRequests } from "@/lib/support";
 
 export const metadata: Metadata = { title: "ระบบหลังบ้าน", robots: { index: false, follow: false } };
 
 const NAV = [
   { href: "/admin", label: "ภาพรวม" },
+  { href: "/admin/analytics", label: "สถิติผู้เข้าชม" },
   { href: "/admin/jobs", label: "งาน Sync" },
+  { href: "/admin/requests", label: "คำร้อง" },
   { href: "/admin/members", label: "สมาชิก" },
   { href: "/admin/orders", label: "คำสั่งซื้อ" },
   { href: "/admin/plans", label: "แพ็กเกจ" },
@@ -19,6 +22,7 @@ const NAV = [
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const user = await requireUser("/admin");
   if (!user.isAdmin) redirect("/account");
+  const openRequests = await countOpenRequests().catch(() => 0);
   return (
     <div className="mx-auto max-w-6xl px-4 py-4">
       <div className="mb-3 flex flex-wrap items-center gap-x-1 gap-y-2 border-b border-wiki-border pb-2 text-sm">
@@ -26,6 +30,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         {NAV.map((n) => (
           <Link key={n.href} href={n.href} className="border border-wiki-border-light bg-white px-3 py-1 hover:bg-wiki-bg hover:no-underline">
             {n.label}
+            {n.href === "/admin/requests" && openRequests > 0 && (
+              <span className="ml-1 rounded-full bg-red-700 px-1.5 text-xs text-white">{openRequests}</span>
+            )}
           </Link>
         ))}
         <span className="ml-auto text-xs text-wiki-muted">{user.email}</span>

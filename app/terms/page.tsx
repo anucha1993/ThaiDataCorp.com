@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Panel from "@/components/Panel";
 import { isBillingEnabled } from "@/lib/billing";
 import { SITE_NAME } from "@/lib/format";
-import { getSetting } from "@/lib/settings";
+import { getSupportEmail } from "@/lib/settings";
 
 export const metadata: Metadata = {
   title: "เงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว",
@@ -16,8 +16,7 @@ export const revalidate = 3600;
  * ⚠ ร่างเบื้องต้น — ให้ฝ่ายกฎหมายตรวจทานก่อนใช้งานจริง โดยเฉพาะก่อนเปิดการเก็บเงิน
  */
 export default async function TermsPage() {
-  const [billing, supportEmail] = await Promise.all([isBillingEnabled(), getSetting("support_email")]);
-  const email = supportEmail || "privacy@thaidatacorp.com";
+  const [billing, email] = await Promise.all([isBillingEnabled(), getSupportEmail()]);
   const mail = <a href={`mailto:${email}`}>{email}</a>;
 
   return (
@@ -83,15 +82,19 @@ export default async function TermsPage() {
               ไม่เข้าถึงอีเมล ไฟล์ หรือข้อมูลอื่นในบัญชี Google — ดู <a href="/data-deletion">วิธีลบข้อมูล</a>
             </li>
             <li>ใช้คุกกี้ที่จำเป็นสำหรับการเข้าสู่ระบบเท่านั้น ไม่ใช้คุกกี้ติดตามเพื่อโฆษณา</li>
+            <li>
+              เก็บสถิติการเข้าชมหน้าเว็บแบบไม่ระบุตัวตน (หน้าที่เปิด เว็บต้นทาง ประเภทอุปกรณ์และเบราว์เซอร์) โดยไม่ใช้คุกกี้ ไม่เก็บหมายเลข IP
+              และไม่ส่งข้อมูลให้บุคคลภายนอก เพื่อปรับปรุงบริการและแสดงสถิติการเข้าชมรวมของแต่ละหน้า
+            </li>
             <li>ไม่ขายหรือเปิดเผยข้อมูลผู้ใช้แก่บุคคลภายนอก เว้นแต่กฎหมายกำหนด</li>
             <li>ยกเลิกการรับอีเมลแจ้งเตือนได้ทุกเมื่อโดยลบรายการที่ติดตามในหน้า &ldquo;บัญชีของฉัน&rdquo;</li>
-            <li>ขอดู แก้ไข หรือลบบัญชีและข้อมูลได้ที่ {mail}</li>
+            <li>ขอดู แก้ไข หรือลบบัญชีและข้อมูลได้ที่ {mail} หรือ<a href="/contact?type=removal">ส่งคำร้องออนไลน์</a> — ดำเนินการภายใน 30 วัน</li>
           </ul>
         </section>
 
         <section>
           <h2 className="wiki-h2">4. การแจ้งแก้ไขข้อมูลนิติบุคคล</h2>
-          <p>หากพบข้อมูลไม่ถูกต้อง หรือต้องการให้นำข้อมูลส่วนบุคคลที่ปรากฏบนหน้าเว็บออก โปรดแจ้งที่ {mail} พร้อมลิงก์ของหน้าที่เกี่ยวข้อง</p>
+          <p>หากพบข้อมูลไม่ถูกต้อง ต้องการเพิ่มข้อมูลติดต่อของกิจการ หรือต้องการให้นำข้อมูลส่วนบุคคลที่ปรากฏบนหน้าเว็บออก โปรด<a href="/contact">ส่งคำร้องออนไลน์</a> หรือแจ้งที่ {mail} พร้อมลิงก์ของหน้าที่เกี่ยวข้อง ทุกคำร้องจะได้รับเลขที่สำหรับติดตามสถานะ และตอบกลับภายใน 3 วันทำการ</p>
         </section>
       </div>
     </Panel>

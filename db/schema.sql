@@ -363,3 +363,65 @@ ALTER TABLE procurement_contract
   ADD INDEX IF NOT EXISTS idx_sign (sign_date),
   ADD INDEX IF NOT EXISTS idx_province_sign (province, sign_date),
   ADD INDEX IF NOT EXISTS idx_method_sign (method, sign_date);
+
+-- v16: ติดต่อเรา / คำร้อง (แก้ไขข้อมูล เพิ่มข้อมูลติดต่อ ลบข้อมูลส่วนบุคคล แจ้งปัญหา ร้องเรียน)
+CREATE TABLE IF NOT EXISTS support_request (
+  id            INT           NOT NULL AUTO_INCREMENT,
+  ticket        VARCHAR(20)   NOT NULL COMMENT 'เลขที่คำร้อง เช่น TDC-691003-7K2Q',
+  type          VARCHAR(20)   NOT NULL,
+  status        VARCHAR(16)   NOT NULL DEFAULT 'new' COMMENT 'new / in_progress / resolved / rejected',
+  juristic_id   CHAR(13)      NULL,
+  page_url      VARCHAR(500)  NULL,
+  name          VARCHAR(255)  NOT NULL,
+  email         VARCHAR(255)  NOT NULL,
+  phone         VARCHAR(64)   NULL,
+  relation      VARCHAR(32)   NULL COMMENT 'ความเกี่ยวข้องกับนิติบุคคล',
+  subject       VARCHAR(255)  NULL,
+  message       TEXT          NOT NULL,
+  contact_json  TEXT          NULL COMMENT 'ข้อมูลติดต่อที่ขอเพิ่ม (JSON)',
+  user_id       INT           NULL,
+  ip_hash       CHAR(64)      NULL,
+  admin_note    TEXT          NULL,
+  created_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  resolved_at   DATETIME      NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_ticket (ticket),
+  KEY idx_status (status, created_at),
+  KEY idx_juristic (juristic_id),
+  KEY idx_ip (ip_hash, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ข้อมูลติดต่อที่เจ้าของกิจการแจ้ง (เผยแพร่หลังผู้ดูแลตรวจสอบ)
+CREATE TABLE IF NOT EXISTS juristic_contact (
+  juristic_id   CHAR(13)      NOT NULL,
+  phone         VARCHAR(64)   NULL,
+  email         VARCHAR(255)  NULL,
+  website       VARCHAR(255)  NULL,
+  line_id       VARCHAR(100)  NULL,
+  facebook      VARCHAR(255)  NULL,
+  source_ticket VARCHAR(20)   NULL,
+  verified_at   DATETIME      NOT NULL,
+  updated_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (juristic_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v17: สถิติผู้เข้าชม (first-party, ไม่ใช้คุกกี้ — visitor = hash รายวันของ IP+UA ไม่เก็บ IP จริง)
+CREATE TABLE IF NOT EXISTS page_view (
+  id          BIGINT        NOT NULL AUTO_INCREMENT,
+  ts          DATETIME      NOT NULL COMMENT 'UTC',
+  path        VARCHAR(500)  NOT NULL,
+  entity_type VARCHAR(16)   NULL COMMENT 'company / agency / tsic / new / search / procurement',
+  entity_id   VARCHAR(255)  NULL,
+  query       VARCHAR(255)  NULL COMMENT 'คำค้นหา (หน้า /search)',
+  visitor     CHAR(16)      NOT NULL COMMENT 'hash รายวัน — นับผู้เข้าชมไม่ซ้ำได้ แต่ย้อนกลับเป็น IP ไม่ได้',
+  referrer    VARCHAR(255)  NULL COMMENT 'โดเมนต้นทาง (null = เข้าตรง/ภายในเว็บ)',
+  device      VARCHAR(10)   NULL,
+  browser     VARCHAR(20)   NULL,
+  os          VARCHAR(20)   NULL,
+  member      TINYINT(1)    NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  KEY idx_ts (ts),
+  KEY idx_entity (entity_type, entity_id, ts),
+  KEY idx_path (path(120), ts)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

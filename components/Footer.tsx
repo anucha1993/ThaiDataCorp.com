@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/format";
+import { getSupportEmail } from "@/lib/settings";
 
-export default function Footer() {
+export default async function Footer() {
   const year = new Date().getFullYear();
+  const email = await getSupportEmail().catch(() => "info@thaidatacorp.com");
 
   return (
     <footer className="mt-12 border-t border-wiki-border bg-white">
@@ -18,9 +20,9 @@ export default function Footer() {
           โดยตรง
         </p>
         <p>
-          ข้อมูลส่วนบุคคลของกรรมการและผู้ถือหุ้นแสดงเท่าที่เปิดเผยต่อสาธารณะตามกฎหมาย หากต้องการแจ้งแก้ไขหรือลบข้อมูล
-          ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 โปรดติดต่อ{" "}
-          <a href="mailto:privacy@thaidatacorp.com">privacy@thaidatacorp.com</a>
+          ข้อมูลส่วนบุคคลแสดงเท่าที่เปิดเผยต่อสาธารณะตามกฎหมาย หากต้องการแจ้งแก้ไข ขอลบข้อมูลตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล
+          พ.ศ. 2562 แจ้งปัญหา หรือร้องเรียน โปรด<Link href="/contact">ส่งคำร้องออนไลน์</Link> หรืออีเมล{" "}
+          <a href={`mailto:${email}`}>{email}</a>
         </p>
         <nav aria-label="ลิงก์ส่วนท้าย" className="flex flex-wrap gap-x-4 gap-y-1">
           <Link href="/">หน้าหลัก</Link>
@@ -31,6 +33,7 @@ export default function Footer() {
           <Link href="/agency">หน่วยงานรัฐ</Link>
           <Link href="/pricing">สมาชิก</Link>
           <Link href="/terms">เงื่อนไขการใช้งาน</Link>
+          <Link href="/contact">ติดต่อเรา / แจ้งปัญหา</Link>
           <a href="https://data.go.th" rel="noopener" target="_blank">
             data.go.th
           </a>
