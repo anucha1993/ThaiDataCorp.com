@@ -32,6 +32,8 @@ export const SETTINGS: SettingDef[] = [
   { key: "promptpay_name", label: "ชื่อบัญชี PromptPay", help: "ชื่อที่ลูกค้าเห็นในหน้าชำระเงิน", env: "PROMPTPAY_NAME" },
   { key: "support_email", label: "อีเมลติดต่อ/ร้องเรียน", help: "แสดงทั้งเว็บ และรับแจ้งเตือนคำร้องใหม่ (ว่าง = info@thaidatacorp.com)", env: "SUPPORT_EMAIL" },
   { key: "extra_admin_emails", label: "ผู้ดูแลเพิ่มเติม", help: "อีเมลคั่นด้วย , (ผู้ดูแลใน ADMIN_EMAILS ของ env เข้าได้เสมอ)" },
+  { key: "company_jobs_per_month", label: "ประกาศงานต่อบริษัทต่อเดือน", help: "จำนวนประกาศรับสมัครงานที่บริษัทลงได้ต่อเดือน (ว่าง = 3)" },
+  { key: "company_news_per_month", label: "ข่าวสารต่อบริษัทต่อเดือน", help: "จำนวนโพสต์ข่าวสารที่บริษัทลงได้ต่อเดือน (ว่าง = 3)" },
 ];
 
 const CACHE_MS = 30_000;

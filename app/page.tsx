@@ -104,6 +104,8 @@ export default async function HomePage() {
                 ["/procurement", "ผู้รับงานภาครัฐ"],
                 ["/procurement/contracts", "สัญญาภาครัฐ"],
                 ["/agency", "หน่วยงานรัฐ"],
+                ["/jobs", "หางาน"],
+                ["/news", "ข่าวบริษัท"],
                 ["/search", "ค้นหาขั้นสูง"],
               ].map(([href, label]) => (
                 <Link

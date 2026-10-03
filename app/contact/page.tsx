@@ -68,6 +68,7 @@ export default async function ContactPage({ searchParams }: Props) {
           companyName: companyName ?? "",
           pageUrl: one(q.from).startsWith("/") ? one(q.from) : companyName ? `/company/${id}` : "",
           name: "",
+          subject: one(q.subject).slice(0, 255),
           email: user?.email ?? "",
         }}
         startedAt={Date.now()}

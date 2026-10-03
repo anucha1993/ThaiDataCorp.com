@@ -62,6 +62,9 @@ export default function UserNav({ billing }: { billing: boolean }) {
               <Link href="/account" role="menuitem" className={itemCls}>
                 บัญชีของฉัน
               </Link>
+              <Link href="/business" role="menuitem" className={itemCls}>
+                บัญชีบริษัท
+              </Link>
               {me.isAdmin && (
                 <Link href="/admin" role="menuitem" className={itemCls}>
                   หลังบ้าน (Admin)

@@ -32,6 +32,9 @@ export default async function Footer() {
           <Link href="/tsic">ประเภทธุรกิจ</Link>
           <Link href="/procurement">ผู้รับงานภาครัฐ</Link>
           <Link href="/agency">หน่วยงานรัฐ</Link>
+          <Link href="/jobs">หางาน</Link>
+          <Link href="/news">ข่าวบริษัท</Link>
+          <Link href="/business">บัญชีบริษัท (ลงประกาศฟรี)</Link>
           <Link href="/pricing">สมาชิก</Link>
           <Link href="/terms">เงื่อนไขการใช้งาน</Link>
           <Link href="/contact">ติดต่อเรา / แจ้งปัญหา</Link>

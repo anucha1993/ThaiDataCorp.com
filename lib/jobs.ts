@@ -53,6 +53,13 @@ export const JOBS: JobDef[] = [
     staleMinutes: 30,
   },
   {
+    key: "backup-userdata",
+    label: "สำรองข้อมูลผู้ใช้",
+    description: "สำรองสมาชิก บัญชีบริษัท ประกาศงาน ข่าว คำร้อง และสถิติ ไว้ที่ storage/backups (เก็บ 14 วัน)",
+    script: "backup-userdata.ts",
+    staleMinutes: 60,
+  },
+  {
     key: "analytics-cleanup",
     label: "ล้างข้อมูลสถิติ / IP เก่า",
     description: "ลบ IP ที่เก็บเกิน 90 วัน และข้อมูลการเข้าชมเกิน 400 วัน (ตามนโยบายความเป็นส่วนตัว)",

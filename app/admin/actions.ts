@@ -21,6 +21,7 @@ import { FREE_PLAN_ID, getPlans, invalidatePlans, isValidPlanSlug } from "@/lib/
 import { getSupportEmail, SETTINGS, setSettings } from "@/lib/settings";
 import { SITE_NAME, SITE_URL } from "@/lib/format";
 import { isMailConfigured, sendMail } from "@/lib/mailer";
+import { adminSetJobHidden, adminSetNewsHidden, decideClaim, removeCompanyMember, setProfileHidden } from "@/lib/business";
 import { cleanContact, getRequest, isRequestStatus, publishContact, removeContact, REQUEST_STATUS, REQUEST_TYPES, updateRequest } from "@/lib/support";
 
 async function requireAdmin() {
@@ -263,4 +264,60 @@ export async function adminRemoveContact(formData: FormData) {
     revalidatePath(`/company/${juristicId}`);
   }
   redirect(`/admin/requests/${id}?ok=removed`);
+}
+
+/* --------------------------------------------------------- บัญชีบริษัท */
+
+export async function adminDecideClaim(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = int(formData, "id", 1);
+  const approve = str(formData, "decision") === "approve";
+  const note = str(formData, "note").slice(0, 2000) || null;
+  if (!approve && !note) redirect(`/admin/business/claims/${id}?error=note`);
+  const c = await decideClaim(id, approve, admin.id, note);
+  if (!c) redirect(`/admin/business/claims/${id}?error=state`);
+  revalidatePath(`/company/${c.juristicId}`);
+  if (isMailConfigured() && c.userEmail) {
+    await sendMail({
+      to: c.userEmail,
+      subject: approve ? `ยืนยันบัญชีบริษัทสำเร็จ — ${SITE_NAME}` : `ผลการยืนยันบัญชีบริษัท — ${SITE_NAME}`,
+      text: approve
+        ? `เรียน คุณ${c.contactName}\n\nบัญชีบริษัท ${c.companyName ?? c.juristicId} ได้รับการยืนยันแล้ว\nจัดการข้อมูลบริษัท ลงประกาศงาน และโพสต์ข่าวได้ที่ ${SITE_URL}/business/${c.juristicId}\n\nเอกสารที่ส่งมาถูกลบออกจากระบบแล้ว\n\n${SITE_NAME}`
+        : `เรียน คุณ${c.contactName}\n\nคำขอยืนยันบัญชีบริษัท ${c.companyName ?? c.juristicId} ยังไม่ผ่านการพิจารณา\nเหตุผล: ${note}\n\nยื่นใหม่ได้ที่ ${SITE_URL}/business/claim?id=${c.juristicId}\nเอกสารที่ส่งมาถูกลบออกจากระบบแล้ว\n\n${SITE_NAME}\n${await getSupportEmail()}`,
+    }).catch((e) => console.error("[admin] claim notify failed:", e));
+  }
+  redirect(`/admin/business?ok=${approve ? "approved" : "rejected"}`);
+}
+
+export async function adminToggleJob(formData: FormData) {
+  await requireAdmin();
+  const id = int(formData, "id", 1);
+  const juristicId = await adminSetJobHidden(id, formData.get("hide") === "1");
+  revalidatePath(`/jobs/${id}`);
+  revalidatePath("/jobs");
+  if (juristicId) revalidatePath(`/company/${juristicId}`);
+  redirect(`/admin/business?tab=jobs`);
+}
+
+export async function adminToggleNews(formData: FormData) {
+  await requireAdmin();
+  const id = int(formData, "id", 1);
+  const juristicId = await adminSetNewsHidden(id, formData.get("hide") === "1");
+  revalidatePath(`/news/${id}`);
+  revalidatePath("/news");
+  if (juristicId) revalidatePath(`/company/${juristicId}`);
+  redirect(`/admin/business?tab=news`);
+}
+
+export async function adminCompanyAccess(formData: FormData) {
+  await requireAdmin();
+  const juristicId = str(formData, "juristicId");
+  if (!/^\d{13}$/.test(juristicId)) redirect("/admin/business?tab=companies");
+  const userId = int(formData, "userId", 0);
+  if (userId) await removeCompanyMember(juristicId, userId);
+  if (formData.has("hidden")) await setProfileHidden(juristicId, formData.get("hidden") === "1");
+  revalidatePath(`/company/${juristicId}`);
+  revalidatePath("/jobs");
+  revalidatePath("/news");
+  redirect(`/admin/business?tab=companies`);
 }

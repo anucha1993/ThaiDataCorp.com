@@ -18,9 +18,12 @@
     "jobs:tick": "tsx scripts/jobs-tick.ts",
     "job": "tsx scripts/run-job.ts",
     "db:copy": "tsx scripts/db-copy.ts",
-    "user:password": "tsx scripts/set-password.ts"
+    "user:password": "tsx scripts/set-password.ts",
+    "backup": "tsx scripts/backup-userdata.ts",
+    "restore": "tsx scripts/restore-userdata.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1146.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.4",
     "@types/nodemailer": "^8.0.2",
@@ -37,6 +40,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"

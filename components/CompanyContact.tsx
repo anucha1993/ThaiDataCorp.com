@@ -5,7 +5,15 @@ import { formatThaiDate } from "@/lib/format";
 /**
  * ข้อมูลติดต่อที่เจ้าของกิจการแจ้ง (ผ่านการตรวจสอบแล้ว) + ลิงก์แจ้งแก้ไข/เพิ่มข้อมูลติดต่อ
  */
-export default function CompanyContact({ id, contact }: { id: string; contact: (ContactInfo & { verifiedAt: string }) | null }) {
+export default function CompanyContact({
+  id,
+  contact,
+  verified = false,
+}: {
+  id: string;
+  contact: (ContactInfo & { verifiedAt: string }) | null;
+  verified?: boolean;
+}) {
   const from = encodeURIComponent(`/company/${id}`);
   const rows = contact
     ? ([
@@ -21,7 +29,9 @@ export default function CompanyContact({ id, contact }: { id: string; contact: (
     <section aria-label="ข้อมูลติดต่อ" className="mt-4 border border-wiki-border-light bg-wiki-bg p-3 text-sm">
       {rows.length > 0 ? (
         <>
-          <h3 className="mb-1 font-bold">ข้อมูลติดต่อ</h3>
+          <h3 className="mb-1 font-bold">
+            ข้อมูลติดต่อ {verified && <span className="text-xs font-normal text-green-800">✔ บริษัทยืนยันตัวตนแล้ว</span>}
+          </h3>
           <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-2 gap-y-0.5">
             {rows.map(([k, v]) => (
               <div key={k} className="contents">
@@ -36,9 +46,11 @@ export default function CompanyContact({ id, contact }: { id: string; contact: (
         <p className="text-wiki-muted">ยังไม่มีข้อมูลติดต่อที่ยืนยันโดยเจ้าของกิจการ</p>
       )}
       <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-        <Link href={`/contact?type=contact&id=${id}&from=${from}`}>
-          {rows.length > 0 ? "แก้ไขข้อมูลติดต่อ" : "เป็นเจ้าของกิจการ? เพิ่มข้อมูลติดต่อ"}
-        </Link>
+        {verified ? (
+          <Link href={`/business/${id}`}>เจ้าของกิจการ: จัดการข้อมูลบริษัท</Link>
+        ) : (
+          <Link href={`/business/claim?id=${id}`}>เป็นเจ้าของกิจการ? ยืนยันบัญชีบริษัท (ฟรี)</Link>
+        )}
         <Link href={`/contact?type=correction&id=${id}&from=${from}`}>แจ้งข้อมูลไม่ถูกต้อง</Link>
         <Link href={`/contact?type=removal&id=${id}&from=${from}`}>ขอลบข้อมูลส่วนบุคคล</Link>
       </p>

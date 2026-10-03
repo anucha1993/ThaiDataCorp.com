@@ -5,6 +5,7 @@ import { agencyUrl, procurementUrl } from "@/lib/format";
 import { listAgencySitemapNames, listProcurementProvinces } from "@/lib/procurement-repo";
 import { listNewSitemapPaths } from "@/lib/new-repo";
 import { listTsicSitemapPaths } from "@/lib/tsic-repo";
+import { listLiveJobIds, listPublishedNewsIds } from "@/lib/business";
 
 export const revalidate = 86400;
 
@@ -21,11 +22,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       console.error("[sitemap] failed:", e);
       return [] as T[];
     });
-  const [tsicPaths, agencies, provinces, newPaths] = await Promise.all([
+  const [tsicPaths, agencies, provinces, newPaths, jobs, news] = await Promise.all([
     safe(listTsicSitemapPaths()),
     safe(listAgencySitemapNames()),
     safe(listProcurementProvinces()),
     safe(listNewSitemapPaths()),
+    safe(listLiveJobIds()),
+    safe(listPublishedNewsIds()),
   ]);
   const paths = [
     ...newPaths,
@@ -35,9 +38,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/pricing",
     "/terms",
     "/contact",
+    "/jobs",
+    "/news",
+    "/business",
     "/data-deletion",
     ...provinces.map((p) => procurementUrl(p.province)),
     ...agencies.map(agencyUrl),
+    ...jobs.map((j) => `/jobs/${j.id}`),
+    ...news.map((n) => `/news/${n.id}`),
   ];
   return [
     ...home,

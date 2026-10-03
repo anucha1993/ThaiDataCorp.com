@@ -434,3 +434,94 @@ ALTER TABLE page_view
   ADD INDEX IF NOT EXISTS idx_vid (vid, ts);
 -- งานล้างข้อมูล: เปิดไว้ตั้งแต่แรก (เป็นข้อผูกพันตามนโยบายความเป็นส่วนตัว)
 INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('analytics-cleanup', 1, '20 3 * * *', NULL);
+
+-- v19: บัญชีบริษัท (ยืนยันด้วยเอกสาร) / โปรไฟล์ / ประกาศงาน / ข่าวสาร
+CREATE TABLE IF NOT EXISTS company_claim (
+  id            INT           NOT NULL AUTO_INCREMENT,
+  juristic_id   CHAR(13)      NOT NULL,
+  user_id       INT           NOT NULL,
+  status        VARCHAR(16)   NOT NULL DEFAULT 'pending' COMMENT 'pending / approved / rejected',
+  contact_name  VARCHAR(255)  NOT NULL,
+  position      VARCHAR(100)  NULL,
+  phone         VARCHAR(64)   NOT NULL,
+  doc_files     TEXT          NULL COMMENT 'JSON รายชื่อไฟล์เอกสาร (ลบไฟล์ทิ้งเมื่อพิจารณาเสร็จ)',
+  docs_deleted_at DATETIME    NULL,
+  admin_note    TEXT          NULL,
+  reviewed_by   INT           NULL,
+  reviewed_at   DATETIME      NULL,
+  created_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_status (status, created_at),
+  KEY idx_juristic (juristic_id),
+  KEY idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS company_member (
+  juristic_id   CHAR(13)      NOT NULL,
+  user_id       INT           NOT NULL,
+  claim_id      INT           NULL,
+  created_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (juristic_id, user_id),
+  KEY idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS company_profile (
+  juristic_id   CHAR(13)      NOT NULL,
+  about         TEXT          NULL,
+  services      TEXT          NULL,
+  logo          VARCHAR(120)  NULL COMMENT 'ไฟล์ใน storage/public',
+  hidden        TINYINT(1)    NOT NULL DEFAULT 0 COMMENT 'ผู้ดูแลซ่อน (ละเมิดนโยบาย)',
+  updated_by    INT           NULL,
+  updated_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (juristic_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS job_post (
+  id              INT           NOT NULL AUTO_INCREMENT,
+  juristic_id     CHAR(13)      NOT NULL,
+  title           VARCHAR(200)  NOT NULL,
+  employment_type VARCHAR(20)   NOT NULL COMMENT 'FULL_TIME / PART_TIME / CONTRACTOR / TEMPORARY / INTERN',
+  province        VARCHAR(64)   NOT NULL,
+  location        VARCHAR(255)  NULL,
+  salary_min      INT           NULL,
+  salary_max      INT           NULL,
+  salary_note     VARCHAR(100)  NULL,
+  positions       INT           NOT NULL DEFAULT 1,
+  description     TEXT          NOT NULL,
+  qualifications  TEXT          NULL,
+  benefits        TEXT          NULL,
+  contact_name    VARCHAR(255)  NULL,
+  contact_phone   VARCHAR(64)   NULL,
+  contact_email   VARCHAR(255)  NULL,
+  contact_line    VARCHAR(100)  NULL,
+  status          VARCHAR(16)   NOT NULL DEFAULT 'active' COMMENT 'active / closed / hidden',
+  valid_through   DATE          NOT NULL,
+  created_by      INT           NOT NULL,
+  created_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_live (status, valid_through),
+  KEY idx_company (juristic_id, created_at),
+  KEY idx_province (province, status, valid_through)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS news_post (
+  id            INT           NOT NULL AUTO_INCREMENT,
+  juristic_id   CHAR(13)      NOT NULL,
+  title         VARCHAR(200)  NOT NULL,
+  body          TEXT          NOT NULL,
+  image         VARCHAR(120)  NULL,
+  status        VARCHAR(16)   NOT NULL DEFAULT 'published' COMMENT 'published / hidden',
+  created_by    INT           NOT NULL,
+  created_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_live (status, created_at),
+  KEY idx_company (juristic_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v20: สำรองข้อมูลผู้ใช้รายวัน (เปิดไว้ตั้งแต่แรก)
+INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('backup-userdata', 1, '40 2 * * *', NULL);
+
+-- v21: รูปประกอบประกาศงาน (เก็บที่ R2 / storage)
+ALTER TABLE job_post ADD COLUMN IF NOT EXISTS image VARCHAR(120) NULL AFTER benefits;

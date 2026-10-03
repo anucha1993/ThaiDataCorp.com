@@ -7,7 +7,7 @@ import { SESSION_COOKIE } from "@/lib/auth";
 import { classify, isBot, parseUa, purgeOldViews, recordView, visitorHash } from "@/lib/analytics";
 import { SITE_URL } from "@/lib/format";
 
-const SKIP = /^\/(admin|api|_next|auth|export|login|register|account|pay)(\/|$)/;
+const SKIP = /^\/(admin|api|_next|auth|export|login|register|account|pay|media)(\/|$)|^\/business\//;
 const OWN_HOSTS = new Set([new URL(SITE_URL).hostname, `www.${new URL(SITE_URL).hostname}`, "localhost"]);
 
 export async function POST(req: Request) {

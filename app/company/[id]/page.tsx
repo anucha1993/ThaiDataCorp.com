@@ -8,6 +8,8 @@ import SignalsSection from "@/components/SignalsSection";
 import SameAddressSection from "@/components/SameAddressSection";
 import ExternalLookup from "@/components/ExternalLookup";
 import CompanyContact from "@/components/CompanyContact";
+import CompanyBusiness from "@/components/CompanyBusiness";
+import { getProfile, isVerifiedCompany, listCompanyJobs, listCompanyNews } from "@/lib/business";
 import ViewsBox from "@/components/ViewsChart";
 import { getEntityDaily } from "@/lib/analytics";
 import { getJuristicContact } from "@/lib/support";
@@ -99,10 +101,19 @@ export default async function CompanyPage({ params }: PageProps) {
 
   const data = await getCompany(id);
   if (!data) notFound();
-  const [contact, views] =
-    getProvider() === "db"
-      ? await Promise.all([getJuristicContact(id).catch(() => null), getEntityDaily("company", id, 30).catch(() => null)])
-      : [null, null];
+  const db = getProvider() === "db";
+  const [contact, views, bizProfile, verified, bizJobs, bizNews] = db
+    ? await Promise.all([
+        getJuristicContact(id).catch(() => null),
+        getEntityDaily("company", id, 30).catch(() => null),
+        getProfile(id).catch(() => null),
+        isVerifiedCompany(id).catch(() => false),
+        listCompanyJobs(id, true).catch(() => []),
+        listCompanyNews(id, true, 5).catch(() => []),
+      ])
+    : [null, null, null, false, [], []];
+  // ผู้ดูแลระงับข้อมูลจากเจ้าของกิจการ → ไม่แสดงส่วนที่บริษัทเขียนเอง
+  const showBiz = verified && !bizProfile?.hidden;
 
   const { profile, directors, shareholders, financials, authorizedSignatory } = data;
   const hasPeople = directors.length > 0 || shareholders.length > 0;
@@ -185,9 +196,11 @@ export default async function CompanyPage({ params }: PageProps) {
                     <b>วัตถุประสงค์ตามที่จดทะเบียน:</b> {profile.objective}
                   </p>
                 )}
-                <CompanyContact id={profile.id} contact={contact} />
+                <CompanyContact id={profile.id} contact={contact} verified={verified} />
                 <ExternalLookup profile={profile} />
               </section>
+
+              {showBiz && <CompanyBusiness profile={bizProfile} jobs={bizJobs} news={bizNews} />}
 
               <TableOfContents items={toc} />
 

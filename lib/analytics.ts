@@ -64,6 +64,8 @@ export function classify(pathname: string, search: URLSearchParams): { type: str
   if ((m = pathname.match(/^\/company\/(\d{13})/))) return { type: "company", id: m[1], query: null };
   if ((m = pathname.match(/^\/agency\/([^/]+)$/)) && m[1] !== "search") return { type: "agency", id: dec(m[1]).slice(0, 255), query: null };
   if ((m = pathname.match(/^\/tsic\/(\d{5})/))) return { type: "tsic", id: m[1], query: null };
+  if ((m = pathname.match(/^\/jobs\/(\d+)$/))) return { type: "job", id: m[1], query: null };
+  if ((m = pathname.match(/^\/news\/(\d+)$/))) return { type: "news", id: m[1], query: null };
   if ((m = pathname.match(/^\/new\/(\d{4}-\d{2})/))) return { type: "new", id: m[1], query: null };
   if ((m = pathname.match(/^\/procurement\/([^/]+)$/)) && !["contracts", "winners"].includes(m[1])) {
     return { type: "procurement", id: dec(m[1]).slice(0, 255), query: null };
