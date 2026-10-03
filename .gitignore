@@ -5,3 +5,6 @@ out
 .env
 next-env.d.ts
 *.tsbuildinfo
+
+# แพ็กเกจ deploy (มีรหัสผ่านจริง)
+deploy/

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#f8f9fa"/>
+  <circle cx="512" cy="512" r="400" fill="#ffffff" stroke="#202122" stroke-width="36"/>
+  <path d="M112 512h800M512 112c-150 128-150 672 0 800M512 112c150 128 150 672 0 800" fill="none" stroke="#72777d" stroke-width="22"/>
+  <path d="M190 300h644M190 724h644" fill="none" stroke="#a2a9b1" stroke-width="18"/>
+  <rect x="300" y="400" width="424" height="224" rx="24" fill="#ffffff" opacity="0.92"/>
+  <text x="512" y="575" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="210" font-weight="bold" fill="#0645ad">TD</text>
+</svg>

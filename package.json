@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "sync": "tsx scripts/sync-opend.ts",
@@ -16,10 +16,18 @@
     "backfill:dbd": "tsx scripts/backfill-dbd.ts",
     "alerts": "tsx scripts/send-alerts.ts",
     "jobs:tick": "tsx scripts/jobs-tick.ts",
-    "job": "tsx scripts/run-job.ts"
+    "job": "tsx scripts/run-job.ts",
+    "db:copy": "tsx scripts/db-copy.ts"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.4",
+    "@types/nodemailer": "^8.0.2",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "cron-parser": "^5.10.1",
+    "exceljs": "^4.4.0",
     "mysql2": "^3.24.5",
     "next": "^16.3.8",
     "nodemailer": "^10.0.13",
@@ -27,18 +35,12 @@
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "server-only": "^0.0.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.6.4",
-    "@types/nodemailer": "^8.0.2",
-    "@types/qrcode": "^1.5.6",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "exceljs": "^4.4.0",
+    "server-only": "^0.0.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=20.9"
   }
 }
