@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CompanyTable from "@/components/CompanyTable";
+import NewToolbox from "@/components/NewToolbox";
+import { memberToolNote } from "@/lib/billing";
 import { newUrl } from "@/app/new/view";
 import { getProvider } from "@/lib/api";
 import { formatNumber, SITE_NAME } from "@/lib/format";
-import { listMonthCompanies, listNewMonths } from "@/lib/new-repo";
+import { getMonthProvinces, getMonthTopTsic, listMonthCompanies, listNewMonths } from "@/lib/new-repo";
 
 export const revalidate = 3600;
 
@@ -20,7 +22,13 @@ export default async function NewIndexPage() {
   if (getProvider() !== "db") notFound();
   const months = await listNewMonths();
   const latest = months[0];
-  const preview = latest ? (await listMonthCompanies(latest.ym, {})).slice(0, 20) : [];
+  const [preview, provinces, tsics] = latest
+    ? await Promise.all([
+        listMonthCompanies(latest.ym, {}).then((r) => r.slice(0, 20)),
+        getMonthProvinces(latest.ym),
+        getMonthTopTsic(latest.ym, undefined, 500),
+      ])
+    : [[], [], []];
 
   // จัดกลุ่มตามปี พ.ศ.
   const byYear = new Map<number, typeof months>();
@@ -37,6 +45,16 @@ export default async function NewIndexPage() {
           รายชื่อบริษัทและห้างหุ้นส่วนที่จดทะเบียนตั้งใหม่กับกรมพัฒนาธุรกิจการค้า แยกรายเดือนตั้งแต่มกราคม 2565
           เลือกเดือนเพื่อดูรายชื่อทั้งหมด กรองตามจังหวัดและประเภทธุรกิจได้ ฟรีบน {SITE_NAME}
         </p>
+
+        {latest && (
+          <NewToolbox
+            months={months}
+            provinces={provinces.map((p) => p.province).sort((x, y) => x.localeCompare(y, "th"))}
+            tsics={tsics}
+            ym={latest.ym}
+            note={await memberToolNote("new")}
+          />
+        )}
 
         {latest && (
           <section aria-labelledby="latest-h">

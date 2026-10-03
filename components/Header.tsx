@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/format";
 import { isBillingEnabled } from "@/lib/billing";
+import UserNav from "@/components/UserNav";
 
 /**
- * Header สไตล์ Wikipedia — Server Component ล้วน ไม่มี JavaScript ฝั่ง client
+ * Header สไตล์ Wikipedia — Server Component (มีแค่เมนูบัญชี UserNav ที่เป็น client component)
  * ช่องค้นหาเป็น <form method="get"> ส่งไปที่ /search จึงทำงานได้แม้ปิด JS
  */
 export default async function Header() {
@@ -41,10 +42,7 @@ export default async function Header() {
             ค้นหา
           </button>
         </form>
-        <nav aria-label="บัญชี" className="flex shrink-0 gap-4 text-sm">
-          <Link href="/pricing">{billing ? "แพ็กเกจ" : "สมัครสมาชิกฟรี"}</Link>
-          <Link href="/account">บัญชีของฉัน</Link>
-        </nav>
+        <UserNav billing={billing} />
       </div>
     </header>
   );

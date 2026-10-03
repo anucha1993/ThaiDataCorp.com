@@ -3,7 +3,8 @@ import Link from "next/link";
 import { registerAction } from "@/app/actions";
 import GoogleButton from "@/components/GoogleButton";
 import Panel, { inputCls, Notice, primaryButtonCls } from "@/components/Panel";
-import { safeNext } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { getCurrentUser, safeNext } from "@/lib/auth";
 import { PASSWORD_MIN } from "@/lib/password";
 
 export const metadata: Metadata = { title: "สมัครสมาชิก", robots: { index: false, follow: false } };
@@ -14,6 +15,8 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 export default async function RegisterPage({ searchParams }: Props) {
   const q = await searchParams;
   const next = safeNext(one(q.next));
+  // เข้าสู่ระบบอยู่แล้ว → ไม่ต้องเห็นหน้าเข้าสู่ระบบ/สมัคร
+  if (await getCurrentUser()) redirect(next);
   const email = one(q.email) ?? "";
   const pending = one(q.pending) ?? "";
   const loginHref = `/login?${new URLSearchParams({ next, ...(email && { email }), ...(pending && { pending }) })}`;

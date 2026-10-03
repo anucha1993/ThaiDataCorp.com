@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CompanyTable from "@/components/CompanyTable";
+import NewToolbox from "@/components/NewToolbox";
 import { getProvider } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { memberToolNote } from "@/lib/billing";
@@ -17,6 +18,7 @@ import {
   getMonthTopTsic,
   adjacentMonths,
   listMonthCompanies,
+  listNewMonths,
   monthHasData,
   PAGE_SIZE,
   parseMonth,
@@ -79,11 +81,14 @@ export async function NewView({ ym, province, searchParams }: { ym: string; prov
   // หน้าแรกของแต่ละเดือนเปิดให้ทุกคน — หน้าถัดไปและตัวกรองประเภทธุรกิจสำหรับสมาชิก (หน้าเหล่านี้เป็น noindex อยู่แล้ว)
   const needsMember = page > 1 || Boolean(tsic);
   const locked = needsMember && !(await getCurrentUser());
-  const [companies, topTsic, provinces] = await Promise.all([
+  const [companies, topTsic, monthProvinces, allTsic, months] = await Promise.all([
     locked ? Promise.resolve([]) : listMonthCompanies(ym, { province, tsic, page }),
     getMonthTopTsic(ym, province),
-    province ? Promise.resolve([]) : getMonthProvinces(ym),
+    getMonthProvinces(ym),
+    getMonthTopTsic(ym, province, 500),
+    listNewMonths(),
   ]);
+  const provinces = province ? [] : monthProvinces;
   const pages = Math.max(1, Math.ceil(filtered.total / PAGE_SIZE));
   if (page > pages) notFound();
 
@@ -164,38 +169,20 @@ export async function NewView({ ym, province, searchParams }: { ym: string; prov
 
         <p className="text-[0.95rem] leading-7">{intro}</p>
 
-        {/* ตัวกรอง — HTML form ล้วน ไม่ต้องใช้ JavaScript */}
-        <form action={newUrl(ym, province)} method="get" className="my-4 flex flex-wrap items-center gap-2 text-sm">
-          <label htmlFor="tsic">กรองประเภทธุรกิจ:</label>
-          <select id="tsic" name="tsic" defaultValue={tsic ?? ""} className="max-w-full border border-wiki-border bg-white px-2 py-1">
-            <option value="">ทุกประเภท</option>
-            {topTsic.map((t) => (
-              <option key={t.code} value={t.code}>
-                {t.name} ({formatNumber(t.count)})
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="border border-wiki-border bg-wiki-bg px-3 py-1 font-bold hover:bg-wiki-header">
-            กรอง
-          </button>
-          {tsic && <Link href={newUrl(ym, province)}>ล้างตัวกรอง</Link>}
-        </form>
+        <NewToolbox
+          months={months}
+          provinces={monthProvinces.map((p) => p.province).sort((x, y) => x.localeCompare(y, "th"))}
+          tsics={allTsic}
+          ym={ym}
+          province={province}
+          tsic={tsic}
+          note={await memberToolNote("new")}
+        />
 
         <h2 className="wiki-h2">
           รายชื่อบริษัทเปิดใหม่{tsicName ? ` ประเภท${tsicName}` : ""}
           <span className="text-base text-wiki-muted"> ({formatNumber(filtered.total)} ราย)</span>
         </h2>
-        <p className="mb-2 text-sm">
-          <a
-            href={`/export/new?${new URLSearchParams({ ym, ...(province && { province }), ...(tsic && { tsic }) }).toString()}`}
-            rel="nofollow"
-          >
-            ⬇ ดาวน์โหลดรายชื่อทั้งหมดเป็น CSV
-          </a>{" "}
-          <span className="text-xs text-wiki-muted">
-            {await memberToolNote("new")} · <Link href="/pricing">รายละเอียด</Link>
-          </span>
-        </p>
         {locked ? (
           <div className="border border-wiki-border bg-wiki-bg px-4 py-5 text-center">
             <p className="mb-3">

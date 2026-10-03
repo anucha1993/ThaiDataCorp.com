@@ -70,7 +70,10 @@ export default async function AccountPage({ searchParams }: Props) {
 
       <section className="mb-6 flex flex-wrap items-center gap-4">
         <div className="flex-1">
-          <div className="text-sm text-wiki-muted">{user.email}</div>
+          <div className="text-sm text-wiki-muted">
+            {user.displayName && <b className="text-wiki-text">{user.displayName} · </b>}
+            {user.email}
+          </div>
           <div className="text-lg">
             {billing ? (
               <>

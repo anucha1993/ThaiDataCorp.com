@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GuestOnly, MemberOnly } from "@/components/MemberGate";
 import { isMockMode, listMockProfiles, listRecentCompanies } from "@/lib/api";
 import { isBillingEnabled } from "@/lib/billing";
 import { formatBaht, formatJuristicId, formatThaiDate, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/format";
@@ -41,11 +42,30 @@ export default async function HomePage() {
           <Link href="/agency">หน่วยงานรัฐที่จัดซื้อจัดจ้างมากที่สุด</Link> จากระบบ e-GP
         </p>
         {!billing && (
-          <p className="mt-3 border-l-4 border-wiki-link bg-wiki-bg px-3 py-2 text-sm">
-            ใช้งานฟรีทั้งหมด — <Link href="/pricing">สมัครสมาชิกฟรี</Link> เพื่อติดตามบริษัทและหน่วยงานรัฐ รับอีเมลแจ้งเตือน
-            และดาวน์โหลดรายชื่อบริษัทเปิดใหม่เป็น CSV
-          </p>
+          <GuestOnly>
+            <p className="mt-3 border-l-4 border-wiki-link bg-wiki-bg px-3 py-2 text-sm">
+              ใช้งานฟรีทั้งหมด — <Link href="/register">สมัครสมาชิกฟรี</Link> เพื่อติดตามบริษัทและหน่วยงานรัฐ รับอีเมลแจ้งเตือน
+              และดาวน์โหลดรายชื่อบริษัทเปิดใหม่เป็น CSV
+            </p>
+          </GuestOnly>
         )}
+        <MemberOnly>
+          <div className="mt-3 border-l-4 border-green-700 bg-wiki-bg px-3 py-2 text-sm">
+            <b>เครื่องมือสมาชิก</b>
+            <ul className="mt-1 list-disc pl-5">
+              <li>
+                <Link href="/new">กรองบริษัทเปิดใหม่</Link> ตามเดือน จังหวัด และประเภทธุรกิจ แล้ว<b>ดาวน์โหลด CSV</b>
+              </li>
+              <li>
+                กดปุ่ม &ldquo;ติดตาม&rdquo; ในหน้าบริษัทหรือ<Link href="/agency">หน่วยงานรัฐ</Link> เพื่อรับอีเมลเมื่อมีสัญญาภาครัฐใหม่
+              </li>
+              <li>
+                ดาวน์โหลดสัญญาจัดซื้อจัดจ้างเป็น CSV ได้ในหน้าบริษัทและหน้าหน่วยงาน · ตั้งค่าแจ้งเตือนที่{" "}
+                <Link href="/account">บัญชีของฉัน</Link>
+              </li>
+            </ul>
+          </div>
+        </MemberOnly>
 
         {recent.length > 0 && (
           <section aria-labelledby="recent-h">

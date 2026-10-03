@@ -27,6 +27,8 @@ const randomToken = () => randomBytes(32).toString("base64url");
 export interface CurrentUser {
   id: number;
   email: string;
+  /** ชื่อที่แสดง (จาก Google) — null ถ้าไม่มี */
+  displayName: string | null;
   /** แพ็กเกจที่ใช้ได้จริงตอนนี้ (หมดอายุแล้ว = free) */
   plan: Plan;
   /** แพ็กเกจที่ซื้อไว้ล่าสุด */
@@ -167,7 +169,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const rows = await dbQuery<RowDataPacket[]>(
-    `SELECT u.id, u.email, u.plan, u.plan_expires_at, u.on_trial, u.trial_used_at, (u.password_hash IS NOT NULL) has_pw,
+    `SELECT u.id, u.email, u.display_name, u.plan, u.plan_expires_at, u.on_trial, u.trial_used_at, (u.password_hash IS NOT NULL) has_pw,
        (u.plan_expires_at IS NOT NULL AND u.plan_expires_at > NOW()) active
      FROM user_session s JOIN app_user u ON u.id = s.user_id WHERE s.id_hash = ? AND s.expires_at > NOW()`,
     [sha256(token)],
@@ -179,6 +181,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return {
     id: u.id,
     email: u.email,
+    displayName: u.display_name ?? null,
     plan: await effectivePlan(plans, purchased, Number(u.active) === 1),
     purchasedPlan: purchased,
     planExpiresAt: u.plan_expires_at,
