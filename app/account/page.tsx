@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { addSearch, logout, removeSearch, unlinkFacebook, unwatchTarget } from "@/app/actions";
+import { addSearch, changePassword, logout, removeSearch, unlinkFacebook, unwatchTarget } from "@/app/actions";
 import { isFacebookConfigured } from "@/lib/facebook";
 import { listIdentities } from "@/lib/identity";
 import Panel, { buttonCls, inputCls, Notice, primaryButtonCls } from "@/components/Panel";
 import { listSavedSearches, listUserOrders, listWatches } from "@/lib/account-repo";
 import { requireUser } from "@/lib/auth";
 import { agencyUrl, formatNumber, formatThaiDate } from "@/lib/format";
+import { PASSWORD_MIN } from "@/lib/password";
 import { listProcurementProvinces } from "@/lib/procurement-repo";
 import { isBillingEnabled } from "@/lib/billing";
 
@@ -18,7 +19,13 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const MESSAGES: Record<string, { tone: "ok" | "error"; text: string }> = {
   "ok:trial": { tone: "ok", text: "เริ่มทดลองใช้ฟรีแล้ว ใช้ได้ทุกฟีเจอร์ของแพ็กเกจจนถึงวันหมดอายุ — ชำระเงินก่อนหมดช่วงทดลองเพื่อใช้งานต่อเนื่อง" },
   "ok:fb-linked": { tone: "ok", text: "เชื่อมบัญชี Facebook แล้ว — ครั้งต่อไปกดเข้าสู่ระบบด้วย Facebook ได้" },
-  "ok:fb-unlinked": { tone: "ok", text: "ยกเลิกการเชื่อม Facebook แล้ว — ยังเข้าสู่ระบบด้วยอีเมลได้ตามปกติ" },
+  "ok:fb-unlinked": { tone: "ok", text: "ยกเลิกการเชื่อม Facebook แล้ว — ยังเข้าสู่ระบบด้วยอีเมลและรหัสผ่านได้ตามปกติ" },
+  "error:fb-unlink-nopw": { tone: "error", text: "กรุณาตั้งรหัสผ่านก่อนยกเลิกการเชื่อม Facebook ไม่เช่นนั้นจะเข้าสู่ระบบไม่ได้" },
+  "ok:password": { tone: "ok", text: "บันทึกรหัสผ่านแล้ว" },
+  "error:pw-short": { tone: "error", text: `รหัสผ่านต้องมีอย่างน้อย ${PASSWORD_MIN} ตัวอักษร` },
+  "error:pw-long": { tone: "error", text: "รหัสผ่านยาวเกินไป" },
+  "error:pw-mismatch": { tone: "error", text: "ยืนยันรหัสผ่านไม่ตรงกัน" },
+  "error:pw-current": { tone: "error", text: "รหัสผ่านปัจจุบันไม่ถูกต้อง" },
   "error:fb-conflict": { tone: "error", text: "บัญชี Facebook นี้ถูกเชื่อมกับสมาชิกอีกบัญชีหนึ่งอยู่แล้ว" },
   "error:fb-cancel": { tone: "error", text: "ยกเลิกการเชื่อม Facebook" },
   "error:fb-state": { tone: "error", text: "การเชื่อม Facebook หมดเวลา กรุณาลองใหม่" },
@@ -96,7 +103,10 @@ export default async function AccountPage({ searchParams }: Props) {
         วิธีเข้าสู่ระบบ
       </h2>
       <ul className="mb-2 space-y-2 text-sm">
-        <li>✉️ อีเมล: <b>{user.email}</b> (ลิงก์เข้าสู่ระบบทางอีเมล)</li>
+        <li>
+          ✉️ อีเมล: <b>{user.email}</b>{" "}
+          {user.hasPassword ? "(ตั้งรหัสผ่านแล้ว)" : <span className="text-wiki-muted">(ยังไม่ได้ตั้งรหัสผ่าน)</span>}
+        </li>
         <li className="flex flex-wrap items-center gap-2">
           <span>
             Facebook:{" "}
@@ -113,6 +123,20 @@ export default async function AccountPage({ searchParams }: Props) {
           )}
         </li>
       </ul>
+      <details className="mb-2 max-w-md text-sm" open={!user.hasPassword && !fbIdentity}>
+        <summary className="cursor-pointer text-wiki-link">{user.hasPassword ? "เปลี่ยนรหัสผ่าน" : "ตั้งรหัสผ่าน (เข้าสู่ระบบด้วยอีเมลได้)"}</summary>
+        <form action={changePassword} className="mt-2 flex flex-col gap-2">
+          <input type="email" name="username" value={user.email} autoComplete="username" readOnly hidden />
+          {user.hasPassword && (
+            <input name="current" type="password" required placeholder="รหัสผ่านปัจจุบัน" autoComplete="current-password" className={inputCls} />
+          )}
+          <input name="password" type="password" required minLength={PASSWORD_MIN} placeholder={`รหัสผ่านใหม่ (อย่างน้อย ${PASSWORD_MIN} ตัวอักษร)`} autoComplete="new-password" className={inputCls} />
+          <input name="password2" type="password" required minLength={PASSWORD_MIN} placeholder="ยืนยันรหัสผ่านใหม่" autoComplete="new-password" className={inputCls} />
+          <button type="submit" className={buttonCls}>
+            บันทึกรหัสผ่าน
+          </button>
+        </form>
+      </details>
 
       <h2 id="watches" className="wiki-h2">
         รายการที่ติดตาม{" "}

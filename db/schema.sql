@@ -345,3 +345,12 @@ CREATE TABLE IF NOT EXISTS oauth_pending (
 
 ALTER TABLE auth_token ADD COLUMN IF NOT EXISTS pending_hash CHAR(64) NULL COMMENT 'oauth_pending ที่จะเชื่อมเมื่อยืนยันอีเมล';
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS display_name VARCHAR(255) NULL AFTER email;
+
+-- v13: เข้าสู่ระบบด้วยอีเมล + รหัสผ่าน (แทนลิงก์ทางอีเมล) — ตาราง auth_token เลิกใช้แล้ว
+ALTER TABLE app_user
+  ADD COLUMN IF NOT EXISTS password_hash        VARCHAR(255) NULL COMMENT 'scrypt$N$r$p$salt$key',
+  ADD COLUMN IF NOT EXISTS password_set_at      DATETIME     NULL,
+  ADD COLUMN IF NOT EXISTS failed_logins        INT          NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS last_failed_login_at DATETIME     NULL;
+-- Facebook ส่งอีเมลที่ตรงกับบัญชีที่มีรหัสผ่าน → ต้องกรอกรหัสผ่านก่อนเชื่อม (กันคนสมัครดักอีเมลคนอื่นไว้ก่อน)
+ALTER TABLE oauth_pending ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL;

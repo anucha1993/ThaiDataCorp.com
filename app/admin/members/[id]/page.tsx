@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { adminDeleteMember, adminExtend, adminRevoke, adminSetPlan } from "@/app/admin/actions";
+import { adminDeleteMember, adminExtend, adminRevoke, adminSetPassword, adminSetPlan } from "@/app/admin/actions";
 import AdminCard from "@/components/AdminCard";
 import { Notice, buttonCls, inputCls, primaryButtonCls } from "@/components/Panel";
 import { getMember } from "@/lib/admin-repo";
@@ -14,6 +14,8 @@ const MSG: Record<string, { tone: "ok" | "error"; text: string }> = {
   "ok:plan": { tone: "ok", text: "เปลี่ยนแพ็กเกจแล้ว" },
   "ok:extended": { tone: "ok", text: "ต่ออายุแล้ว" },
   "ok:revoked": { tone: "ok", text: "บังคับออกจากระบบทุกอุปกรณ์แล้ว" },
+  "ok:password": { tone: "ok", text: "ตั้งรหัสผ่านใหม่แล้ว และให้ออกจากระบบทุกอุปกรณ์ — แจ้งรหัสใหม่ให้สมาชิก แล้วแนะนำให้เปลี่ยนเองที่หน้าบัญชี" },
+  "error:password": { tone: "error", text: "รหัสผ่านต้องมี 8–200 ตัวอักษร" },
   "error:plan": { tone: "error", text: "ไม่พบแพ็กเกจ" },
   "error:expires": { tone: "error", text: "กรุณาระบุวันหมดอายุ" },
   "error:confirm": { tone: "error", text: "พิมพ์ DELETE เพื่อยืนยันการลบ" },
@@ -45,6 +47,7 @@ export default async function MemberPage({ params, searchParams }: Props) {
           · สมัคร {String(u.created_at).slice(0, 10)} · session ที่ใช้งาน {sessions.length}
           {u.trial_used_at && ` · ใช้สิทธิ์ทดลอง ${u.trial_plan} เมื่อ ${String(u.trial_used_at).slice(0, 10)}`}
           {u.display_name && ` · ชื่อ ${u.display_name}`}
+          {` · รหัสผ่าน: ${u.password_hash ? `ตั้งแล้ว (${String(u.password_set_at ?? "").slice(0, 10)})` : "ยังไม่ได้ตั้ง"}`}
           {identities.length > 0 &&
             ` · เชื่อม ${identities.map((i) => `${i.provider}${i.name ? ` (${i.name})` : ""}`).join(", ")}`}
         </p>
@@ -82,6 +85,14 @@ export default async function MemberPage({ params, searchParams }: Props) {
               </select>
               <button type="submit" className={buttonCls}>
                 ต่ออายุ
+              </button>
+            </form>
+            <form action={adminSetPassword} className="flex flex-wrap items-center gap-2 border border-wiki-border-light p-3 text-sm">
+              <b className="w-full">ตั้งรหัสผ่านใหม่ (กรณีสมาชิกลืมรหัสผ่าน)</b>
+              <input type="hidden" name="id" value={u.id} />
+              <input name="password" required minLength={8} autoComplete="off" placeholder="รหัสผ่านใหม่" className={`${inputCls} flex-1`} />
+              <button type="submit" className={buttonCls}>
+                ตั้งรหัส
               </button>
             </form>
             <form action={adminRevoke} className="border border-wiki-border-light p-3 text-sm">

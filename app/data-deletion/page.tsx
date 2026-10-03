@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Panel from "@/components/Panel";
+import Panel, { Notice } from "@/components/Panel";
 import { SITE_NAME } from "@/lib/format";
 import { getSetting } from "@/lib/settings";
 
@@ -10,13 +10,24 @@ export const metadata: Metadata = {
   alternates: { canonical: "/data-deletion" },
 };
 
-export const revalidate = 3600;
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-/** หน้า "Data Deletion Instructions URL" ที่ Facebook Login กำหนดให้ต้องมี */
-export default async function DataDeletionPage() {
+/**
+ * หน้า "Data Deletion Instructions URL" ที่ Facebook Login กำหนดให้ต้องมี
+ * และหน้าสถานะที่ callback (/auth/facebook/data-deletion) ส่งผู้ใช้มาพร้อม ?code=
+ */
+export default async function DataDeletionPage({ searchParams }: Props) {
+  const raw = (await searchParams).code;
+  const code = (Array.isArray(raw) ? raw[0] : raw)?.replace(/[^A-Z0-9]/gi, "").slice(0, 32);
   const email = (await getSetting("support_email")) || "privacy@thaidatacorp.com";
   return (
     <Panel title="การลบข้อมูลผู้ใช้" crumbs={[{ label: "การลบข้อมูล" }]}>
+      {code && (
+        <Notice tone="ok">
+          ได้รับคำขอลบข้อมูลจาก Facebook แล้ว (รหัสยืนยัน <b className="font-mono">{code}</b>) — ลบการเชื่อมบัญชีและข้อมูลที่ได้รับจาก
+          Facebook ออกจากระบบเรียบร้อย หากต้องการลบบัญชีสมาชิกทั้งหมดด้วย ดูวิธีด้านล่าง
+        </Notice>
+      )}
       <div className="space-y-4 text-sm leading-7">
         <p>
           {SITE_NAME} เก็บข้อมูลของสมาชิกเท่าที่จำเป็น ได้แก่ อีเมล รายการที่ติดตาม เงื่อนไขแจ้งเตือน และ (ถ้าเข้าสู่ระบบด้วย Facebook)

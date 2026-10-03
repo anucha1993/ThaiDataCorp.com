@@ -199,11 +199,14 @@ export async function NewView({ ym, province, searchParams }: { ym: string; prov
         {locked ? (
           <div className="border border-wiki-border bg-wiki-bg px-4 py-5 text-center">
             <p className="mb-3">
-              {tsic ? "การกรองตามประเภทธุรกิจ" : "การดูรายชื่อหน้าถัดไป"}สำหรับสมาชิก — สมัครฟรี ใช้อีเมลอย่างเดียว ไม่ต้องตั้งรหัสผ่าน
+              {tsic ? "การกรองตามประเภทธุรกิจ" : "การดูรายชื่อหน้าถัดไป"}สำหรับสมาชิก — สมัครฟรี ด้วยอีเมลหรือ Facebook
             </p>
-            <Link href={`/login?next=${encodeURIComponent(newUrl(ym, province, { tsic, page }))}`} className={primaryButtonCls}>
-              สมัครสมาชิกฟรี / เข้าสู่ระบบ
+            <Link href={`/register?next=${encodeURIComponent(newUrl(ym, province, { tsic, page }))}`} className={primaryButtonCls}>
+              สมัครสมาชิกฟรี
             </Link>
+            <p className="mt-3 text-sm">
+              มีบัญชีแล้ว? <Link href={`/login?next=${encodeURIComponent(newUrl(ym, province, { tsic, page }))}`}>เข้าสู่ระบบ</Link>
+            </p>
           </div>
         ) : (
           <CompanyTable companies={companies} showProvince={!province} showTsic={!tsic} />

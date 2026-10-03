@@ -42,8 +42,15 @@ export async function GET(req: Request) {
 
   const result = await loginWithExternal(external);
   if ("pendingToken" in result) {
-    // Facebook ไม่ให้อีเมล → ให้ผู้ใช้กรอกอีเมลและยืนยันก่อน แล้วจึงเชื่อมบัญชี
-    redirect(`/login?fb=need-email&pending=${encodeURIComponent(result.pendingToken)}&next=${encodeURIComponent(safeNext(saved.next))}`);
+    // ต้องเข้าสู่ระบบด้วยรหัสผ่านก่อนแล้วจึงเชื่อม: อีเมลนี้มีบัญชีรหัสผ่านอยู่แล้ว (link-password)
+    // หรือ Facebook ไม่ให้อีเมล (need-email → เข้าสู่ระบบหรือสมัครด้วยอีเมลก็ได้)
+    const q = new URLSearchParams({
+      fb: result.email ? "link-password" : "need-email",
+      pending: result.pendingToken,
+      next: safeNext(saved.next),
+    });
+    if (result.email) q.set("email", result.email);
+    redirect(`/login?${q}`);
   }
   await setSessionCookie(await createSessionForUser(result.userId));
   redirect(safeNext(saved.next));

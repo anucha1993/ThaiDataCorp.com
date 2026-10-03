@@ -6,7 +6,8 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { requireUser, setUserPassword } from "@/lib/auth";
+import { passwordProblem } from "@/lib/password";
 import {
   deleteMember,
   extendMember,
@@ -121,6 +122,17 @@ export async function adminRevoke(formData: FormData) {
   const id = int(formData, "id", 1);
   await revokeSessions(id);
   redirect(`/admin/members/${id}?ok=revoked`);
+}
+
+export async function adminSetPassword(formData: FormData) {
+  await requireAdmin();
+  const id = int(formData, "id", 1);
+  const password = String(formData.get("password") ?? "");
+  if (passwordProblem(password)) redirect(`/admin/members/${id}?error=password`);
+  await setUserPassword(id, null, password);
+  // ให้ทุกอุปกรณ์ที่ค้างอยู่ต้องเข้าสู่ระบบใหม่ด้วยรหัสใหม่
+  await revokeSessions(id);
+  redirect(`/admin/members/${id}?ok=password`);
 }
 
 export async function adminDeleteMember(formData: FormData) {

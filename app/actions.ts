@@ -5,14 +5,16 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
-  consumeLoginToken,
-  createLoginToken,
+  createSessionForUser,
   destroySession,
   getCurrentUser,
+  loginWithPassword,
   normalizeEmail,
+  registerWithPassword,
   requireUser,
   safeNext,
   setSessionCookie,
+  setUserPassword,
 } from "@/lib/auth";
 import {
   addSavedSearch,
@@ -27,8 +29,9 @@ import {
   type WatchKind,
 } from "@/lib/account-repo";
 import { isValidJuristicId } from "@/lib/juristic-id";
-import { pendingHash, unlinkIdentity } from "@/lib/identity";
-import { isMailConfigured, sendMail } from "@/lib/mailer";
+import { completePending, pendingHash, unlinkIdentity } from "@/lib/identity";
+import { passwordProblem } from "@/lib/password";
+import { sendMail } from "@/lib/mailer";
 import { getPlans } from "@/lib/plans";
 import { isBillingEnabled } from "@/lib/billing";
 import { SITE_NAME, SITE_URL } from "@/lib/format";
@@ -43,42 +46,68 @@ async function baseUrl(): Promise<string> {
 
 /* -------------------------------- Login -------------------------------- */
 
-export async function requestLogin(formData: FormData) {
-  const email = normalizeEmail(formData.get("email"));
-  const next = safeNext(formData.get("next"));
-  if (!email) redirect(`/login?error=email&next=${encodeURIComponent(next)}`);
-
-  const pending = await pendingHash(String(formData.get("pending") ?? "") || null);
-  const token = await createLoginToken(email, next, pending);
-  if (!token) redirect(`/login?error=rate&next=${encodeURIComponent(next)}`);
-
-  const link = `${await baseUrl()}/auth/verify?token=${encodeURIComponent(token)}`;
-  await sendMail({
-    to: email,
-    subject: `ลิงก์เข้าสู่ระบบ ${SITE_NAME}`,
-    text: `กดลิงก์นี้เพื่อเข้าสู่ระบบ ${SITE_NAME} (ใช้ได้ 30 นาที ครั้งเดียว):\n\n${link}\n\nหากคุณไม่ได้ขอเข้าสู่ระบบ ไม่ต้องทำอะไร`,
-    html: `<p>กดปุ่มด้านล่างเพื่อเข้าสู่ระบบ ${SITE_NAME} (ใช้ได้ 30 นาที ครั้งเดียว)</p>
-      <p><a href="${link}" style="display:inline-block;padding:10px 18px;background:#0645ad;color:#fff;text-decoration:none">เข้าสู่ระบบ</a></p>
-      <p style="color:#54595d;font-size:12px">หากคุณไม่ได้ขอเข้าสู่ระบบ ไม่ต้องทำอะไร</p>`,
-  });
-
-  // โหมดพัฒนาที่ยังไม่ตั้ง SMTP: แสดงลิงก์บนหน้าจอเพื่อทดสอบได้
-  const devLink = !isMailConfigured() && process.env.NODE_ENV !== "production" ? `&dev=${encodeURIComponent(link)}` : "";
-  redirect(`/login?sent=1&email=${encodeURIComponent(email)}${devLink}`);
+/** query string สำหรับส่งกลับไปหน้าฟอร์มพร้อมค่าเดิม (ไม่ส่งรหัสผ่านกลับ) */
+function backQuery(error: string, email: string, next: string, pending: string): string {
+  const q = new URLSearchParams({ error, next });
+  if (email) q.set("email", email);
+  if (pending) q.set("pending", pending);
+  return q.toString();
 }
 
-export async function confirmLogin(formData: FormData) {
-  const token = String(formData.get("token") ?? "");
-  const result = token ? await consumeLoginToken(token) : null;
-  if (!result) redirect("/login?error=token");
-  await setSessionCookie(result.sessionToken);
-  if (result.linked === "conflict") redirect("/account?error=fb-conflict#login-methods");
-  if (result.linked === "ok") redirect("/account?ok=fb-linked#login-methods");
-  redirect(result.next);
+/** เข้าสู่ระบบสำเร็จ → ตั้ง cookie + เชื่อม Facebook ที่รออยู่ (ถ้ามี) แล้วไปหน้าปลายทาง */
+async function finishLogin(userId: number, pending: string, next: string): Promise<never> {
+  const hash = await pendingHash(pending || null);
+  const linked = hash ? await completePending(hash, userId) : undefined;
+  await setSessionCookie(await createSessionForUser(userId));
+  if (linked === "conflict") redirect("/account?error=fb-conflict#login-methods");
+  if (linked === "ok") redirect("/account?ok=fb-linked#login-methods");
+  redirect(next);
+}
+
+export async function loginAction(formData: FormData) {
+  const rawEmail = String(formData.get("email") ?? "").trim().slice(0, 255);
+  const email = normalizeEmail(rawEmail);
+  const password = String(formData.get("password") ?? "");
+  const next = safeNext(formData.get("next"));
+  const pending = String(formData.get("pending") ?? "").slice(0, 100);
+  if (!email || !password) redirect(`/login?${backQuery("invalid", rawEmail, next, pending)}`);
+  const res = await loginWithPassword(email, password);
+  if ("error" in res) redirect(`/login?${backQuery(res.error, email, next, pending)}`);
+  await finishLogin(res.userId, pending, next);
+}
+
+export async function registerAction(formData: FormData) {
+  const rawEmail = String(formData.get("email") ?? "").trim().slice(0, 255);
+  const email = normalizeEmail(rawEmail);
+  const password = String(formData.get("password") ?? "");
+  const next = safeNext(formData.get("next"));
+  const pending = String(formData.get("pending") ?? "").slice(0, 100);
+  const fail: (error: string) => never = (error) => redirect(`/register?${backQuery(error, rawEmail, next, pending)}`);
+  if (!email) fail("email");
+  const problem = passwordProblem(password);
+  if (problem) fail(problem);
+  if (password !== String(formData.get("password2") ?? "")) fail("mismatch");
+  if (formData.get("accept") !== "1") fail("terms");
+  const res = await registerWithPassword(email, password);
+  if ("error" in res) fail(res.error);
+  await finishLogin(res.userId, pending, next);
+}
+
+export async function changePassword(formData: FormData) {
+  const user = await requireUser("/account");
+  const password = String(formData.get("password") ?? "");
+  const back: (key: string) => never = (key) => redirect(`/account?${key}#login-methods`);
+  const problem = passwordProblem(password);
+  if (problem) back(`error=pw-${problem}`);
+  if (password !== String(formData.get("password2") ?? "")) back("error=pw-mismatch");
+  const res = await setUserPassword(user.id, user.hasPassword ? String(formData.get("current") ?? "") : null, password);
+  back(res === "ok" ? "ok=password" : "error=pw-current");
 }
 
 export async function unlinkFacebook() {
   const user = await requireUser("/account");
+  // ไม่มีรหัสผ่าน + ยกเลิก Facebook = เข้าบัญชีไม่ได้อีก
+  if (!user.hasPassword) redirect("/account?error=fb-unlink-nopw#login-methods");
   await unlinkIdentity(user.id, "facebook");
   redirect("/account?ok=fb-unlinked#login-methods");
 }

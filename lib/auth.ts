@@ -1,8 +1,8 @@
 /**
- * เข้าสู่ระบบด้วยลิงก์ทางอีเมล (ไม่มีรหัสผ่าน)
+ * สมัคร / เข้าสู่ระบบด้วยอีเมล + รหัสผ่าน (และ Facebook — ดู lib/identity.ts)
  *
- * - token / session เก็บเป็น SHA-256 ใน DB (ถ้า DB รั่ว ก็เอาไปใช้ไม่ได้)
- * - ลิงก์ในอีเมลเปิดหน้า "ยืนยันเข้าสู่ระบบ" แล้วต้องกดปุ่ม (POST) — กันโปรแกรมสแกนลิงก์ในอีเมลใช้ token ไปก่อน
+ * - รหัสผ่านแฮชด้วย scrypt (lib/password.ts) · session เก็บเป็น SHA-256 ใน DB (ถ้า DB รั่ว ก็เอาไปใช้ไม่ได้)
+ * - ใส่รหัสผ่านผิด 5 ครั้งใน 15 นาที → ล็อกบัญชีชั่วคราว 15 นาที
  * - อ่าน cookie เฉพาะหน้าที่ต้อง login (/account, /admin, /pay ...) เพื่อไม่ให้หน้า ISR กลายเป็น dynamic
  */
 import "server-only";
@@ -13,12 +13,13 @@ import type { RowDataPacket } from "mysql2";
 import { dbQuery } from "@/lib/db";
 import { FREE_PLAN_ID, getPlans, type Plan, type PlanId } from "@/lib/plans";
 import { getSetting } from "@/lib/settings";
-import { completePending } from "@/lib/identity";
+import { hashPassword, verifyPassword } from "@/lib/password";
 import { effectivePlan, isBillingEnabled } from "@/lib/billing";
 
 export const SESSION_COOKIE = "tdc_session";
 const SESSION_DAYS = 30;
-const TOKEN_MINUTES = 30;
+const MAX_FAILED_LOGINS = 5;
+const LOCK_MINUTES = 15;
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const randomToken = () => randomBytes(32).toString("base64url");
@@ -36,6 +37,8 @@ export interface CurrentUser {
   /** เคยใช้สิทธิ์ทดลองแล้ว */
   trialUsed: boolean;
   isAdmin: boolean;
+  /** ตั้งรหัสผ่านแล้ว (บัญชีที่สมัครด้วย Facebook อาจยังไม่มี) */
+  hasPassword: boolean;
 }
 
 export function normalizeEmail(raw: unknown): string | null {
@@ -57,21 +60,6 @@ async function adminEmails(): Promise<Set<string>> {
   );
 }
 
-/** สร้าง token เข้าสู่ระบบ — คืน null ถ้าขอถี่เกิน (3 ครั้ง / 10 นาที / อีเมล) */
-export async function createLoginToken(email: string, next: string, pendingHash: string | null = null): Promise<string | null> {
-  const [recent] = await dbQuery<RowDataPacket[]>(
-    `SELECT COUNT(*) n FROM auth_token WHERE email = ? AND created_at > NOW() - INTERVAL 10 MINUTE`,
-    [email],
-  );
-  if (Number(recent?.n ?? 0) >= 3) return null;
-  const token = randomToken();
-  await dbQuery(
-    `INSERT INTO auth_token (token_hash, email, next_path, pending_hash, expires_at) VALUES (?, ?, ?, ?, NOW() + INTERVAL ? MINUTE)`,
-    [sha256(token), email, next, pendingHash, TOKEN_MINUTES],
-  );
-  return token;
-}
-
 /** สร้าง session ใหม่ให้ผู้ใช้ — คืน token ดิบสำหรับใส่ cookie */
 export async function createSessionForUser(userId: number): Promise<string> {
   const sessionToken = randomToken();
@@ -84,30 +72,77 @@ export async function createSessionForUser(userId: number): Promise<string> {
 }
 
 /**
- * ใช้ token (ครั้งเดียว) → สร้างผู้ใช้ถ้ายังไม่มี + session — คืน path ปลายทาง หรือ null ถ้า token ใช้ไม่ได้
- * ถ้าลิงก์นี้มาจากการเข้าสู่ระบบด้วย Facebook ที่ไม่ได้ให้อีเมล จะเชื่อมบัญชี Facebook ให้ด้วย
+ * สมัครสมาชิกด้วยอีเมล + รหัสผ่าน
+ * - "exists"        อีเมลนี้มีรหัสผ่านอยู่แล้ว → ให้ไปเข้าสู่ระบบ
+ * - "facebook-only" อีเมลนี้สมัครด้วย Facebook → ต้องเข้าด้วย Facebook แล้วตั้งรหัสผ่านในหน้าบัญชี
+ * - "no-password"   บัญชีเก่าจากระบบลิงก์อีเมล → ผู้ดูแลตั้งรหัสให้ (/admin/members หรือ npm run user:password)
+ * ห้ามให้ "สมัครทับ" บัญชีที่มีอยู่แล้ว ไม่เช่นนั้นใครก็ตั้งรหัสผ่านให้บัญชีของคนอื่น (รวมถึงผู้ดูแล) แล้วเข้าแทนได้
  */
-export async function consumeLoginToken(
-  token: string,
-): Promise<{ sessionToken: string; next: string; linked?: "ok" | "conflict" | "expired" } | null> {
-  const hash = sha256(token);
-  const rows = await dbQuery<RowDataPacket[]>(
-    `SELECT email, next_path, pending_hash FROM auth_token WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()`,
-    [hash],
+export async function registerWithPassword(
+  email: string,
+  password: string,
+): Promise<{ userId: number } | { error: "exists" | "facebook-only" | "no-password" }> {
+  const [u] = await dbQuery<RowDataPacket[]>(
+    `SELECT id, password_hash, (SELECT COUNT(*) FROM user_identity i WHERE i.user_id = app_user.id) identities
+     FROM app_user WHERE email = ?`,
+    [email],
   );
-  const t = rows[0];
-  if (!t) return null;
-  const res = await dbQuery<import("mysql2").ResultSetHeader>(
-    `UPDATE auth_token SET used_at = NOW() WHERE token_hash = ? AND used_at IS NULL`,
-    [hash],
-  );
-  if (res.affectedRows !== 1) return null; // ถูกใช้ไปพร้อมกันแล้ว
+  if (u) return { error: u.password_hash ? "exists" : Number(u.identities) > 0 ? "facebook-only" : "no-password" };
+  try {
+    const res = await dbQuery<import("mysql2").ResultSetHeader>(
+      `INSERT INTO app_user (email, password_hash, password_set_at) VALUES (?, ?, NOW())`,
+      [email, await hashPassword(password)],
+    );
+    return { userId: res.insertId };
+  } catch (e) {
+    if ((e as { code?: string }).code === "ER_DUP_ENTRY") return { error: "exists" }; // สมัครพร้อมกัน 2 ครั้ง
+    throw e;
+  }
+}
 
-  await dbQuery(`INSERT INTO app_user (email) VALUES (?) ON DUPLICATE KEY UPDATE email = email`, [t.email]);
-  const [u] = await dbQuery<RowDataPacket[]>(`SELECT id FROM app_user WHERE email = ?`, [t.email]);
-  const linked = t.pending_hash ? await completePending(t.pending_hash, Number(u.id)) : undefined;
-  const sessionToken = await createSessionForUser(Number(u.id));
-  return { sessionToken, next: safeNext(t.next_path), linked };
+/** เข้าสู่ระบบด้วยอีเมล + รหัสผ่าน */
+export async function loginWithPassword(
+  email: string,
+  password: string,
+): Promise<{ userId: number } | { error: "invalid" | "locked" | "no-password" | "facebook-only" }> {
+  const [u] = await dbQuery<RowDataPacket[]>(
+    `SELECT id, password_hash, failed_logins,
+       (last_failed_login_at > NOW() - INTERVAL ? MINUTE) recent_fail,
+       (SELECT COUNT(*) FROM user_identity i WHERE i.user_id = app_user.id) identities
+     FROM app_user WHERE email = ?`,
+    [LOCK_MINUTES, email],
+  );
+  if (u && Number(u.recent_fail) === 1 && Number(u.failed_logins) >= MAX_FAILED_LOGINS) return { error: "locked" };
+  if (u && !u.password_hash) return { error: Number(u.identities) > 0 ? "facebook-only" : "no-password" };
+  if (!(await verifyPassword(password, u?.password_hash))) {
+    if (u) {
+      await dbQuery(
+        `UPDATE app_user SET failed_logins = IF(last_failed_login_at > NOW() - INTERVAL ? MINUTE, failed_logins + 1, 1),
+           last_failed_login_at = NOW() WHERE id = ?`,
+        [LOCK_MINUTES, u.id],
+      );
+    }
+    return { error: "invalid" };
+  }
+  if (Number(u.failed_logins) > 0) await dbQuery(`UPDATE app_user SET failed_logins = 0 WHERE id = ?`, [u.id]);
+  return { userId: Number(u.id) };
+}
+
+/** ตั้ง/เปลี่ยนรหัสผ่าน — ถ้ามีรหัสเดิมต้องใส่รหัสเดิมให้ถูก · admin ตั้งให้ได้โดยไม่ต้องใช้รหัสเดิม (current = null) */
+export async function setUserPassword(
+  userId: number,
+  current: string | null,
+  password: string,
+): Promise<"ok" | "wrong-current"> {
+  if (current !== null) {
+    const [u] = await dbQuery<RowDataPacket[]>(`SELECT password_hash FROM app_user WHERE id = ?`, [userId]);
+    if (u?.password_hash && !(await verifyPassword(current, u.password_hash))) return "wrong-current";
+  }
+  await dbQuery(`UPDATE app_user SET password_hash = ?, password_set_at = NOW(), failed_logins = 0 WHERE id = ?`, [
+    await hashPassword(password),
+    userId,
+  ]);
+  return "ok";
 }
 
 /** ใช้ใน Server Action / Route Handler เท่านั้น */
@@ -132,7 +167,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const rows = await dbQuery<RowDataPacket[]>(
-    `SELECT u.id, u.email, u.plan, u.plan_expires_at, u.on_trial, u.trial_used_at,
+    `SELECT u.id, u.email, u.plan, u.plan_expires_at, u.on_trial, u.trial_used_at, (u.password_hash IS NOT NULL) has_pw,
        (u.plan_expires_at IS NOT NULL AND u.plan_expires_at > NOW()) active
      FROM user_session s JOIN app_user u ON u.id = s.user_id WHERE s.id_hash = ? AND s.expires_at > NOW()`,
     [sha256(token)],
@@ -150,6 +185,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     onTrial: Number(u.on_trial) === 1 && Number(u.active) === 1 && (await isBillingEnabled()),
     trialUsed: Boolean(u.trial_used_at),
     isAdmin: (await adminEmails()).has(String(u.email).toLowerCase()),
+    hasPassword: Number(u.has_pw) === 1,
   };
 }
 

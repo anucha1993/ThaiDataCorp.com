@@ -23,11 +23,11 @@ export default function FreeModePricing({ plan }: { plan: Plan }) {
           <li key={b}>{b}</li>
         ))}
       </ul>
-      <Link href="/login?next=/account" className={primaryButtonCls}>
-        สมัครสมาชิกฟรีด้วยอีเมล
+      <Link href="/register?next=/account" className={primaryButtonCls}>
+        สมัครสมาชิกฟรี
       </Link>
       <p className="mt-4 text-xs text-wiki-muted">
-        ไม่ต้องตั้งรหัสผ่าน — ระบบส่งลิงก์เข้าสู่ระบบไปที่อีเมลของคุณ · ดู <Link href="/terms">เงื่อนไขการใช้งาน</Link>
+        สมัครด้วยอีเมล + รหัสผ่าน หรือ Facebook · มีบัญชีแล้ว? <Link href="/login?next=/account">เข้าสู่ระบบ</Link> · ดู <Link href="/terms">เงื่อนไขการใช้งาน</Link>
       </p>
     </Panel>
   );
