@@ -1,33 +1,34 @@
 /**
- * ดาวน์โหลดสัญญาจัดซื้อจัดจ้างภาครัฐเป็น CSV — /export/contracts?company=0105...  หรือ ?agency=กรมทางหลวง
- * เฉพาะแพ็กเกจ Business
+ * ดาวน์โหลดสัญญาจัดซื้อจัดจ้างภาครัฐเป็น CSV
+ *   /export/contracts?company=0105...        สัญญาของบริษัท (ลิงก์จากหน้าบริษัท)
+ *   /export/contracts?agency=กรมทางหลวง      สัญญาของหน่วยงาน
+ *   /export/contracts?<ตัวกรองเดียวกับหน้า /procurement/contracts>
+ * สำหรับสมาชิกที่แพ็กเกจเปิดสิทธิ์ดาวน์โหลดสัญญา
  */
 import { redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
 import { getCurrentUser } from "@/lib/auth";
 import { csvResponse, toCsv } from "@/lib/csv";
-import { dbQuery } from "@/lib/db";
-import { isValidJuristicId } from "@/lib/juristic-id";
+import { contractQuery, contractRows, hasContractFilter, parseContractFilters } from "@/lib/procurement-search";
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const company = url.searchParams.get("company") || undefined;
-  const agency = url.searchParams.get("agency") || undefined;
-  const back = company ? `/company/${company}` : agency ? `/agency/${encodeURIComponent(agency)}` : "/procurement";
+  const sp = Object.fromEntries(new URL(req.url).searchParams);
+  // ลิงก์เดิมจากหน้าบริษัทใช้ ?company= → เท่ากับตัวกรองผู้รับสัญญา
+  if (sp.company && !sp.winner) sp.winner = sp.company;
+  const f = parseContractFilters(sp);
+  const back = `/procurement/contracts?${contractQuery(f)}`;
 
   const user = await getCurrentUser();
   if (!user) redirect(`/login?next=${encodeURIComponent(back)}`);
   if (!user.plan.exportContracts) redirect("/pricing?need=contracts");
-  if ((!company && !agency) || (company && !isValidJuristicId(company))) return new Response("Bad request", { status: 400 });
+  if (!hasContractFilter(f)) redirect(back);
 
-  const rows = await dbQuery<RowDataPacket[]>(
-    `SELECT fiscal_year, project_id, project_name, project_type, agency, sub_agency, method, budget, ref_price,
-       agreed_price, contract_value, province, district, winner_id, winner_name, contract_no, sign_date, end_date,
-       contract_status
-     FROM procurement_contract WHERE ${company ? "winner_id = ?" : "agency = ?"}
-     ORDER BY sign_date DESC LIMIT ?`,
-    [company ?? agency, user.plan.exportRows],
-  );
+  const rows = await contractRows(f, user.plan.exportRows);
+  if (!rows) {
+    return new Response("ตัวกรองกว้างเกินไป กรุณาเพิ่มตัวกรอง (หน่วยงาน ผู้รับสัญญา หรือช่วงวันที่) แล้วลองใหม่", {
+      status: 422,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
+  }
   const csv = toCsv(
     ["ปีงบประมาณ", "รหัสโครงการ", "ชื่อโครงการ", "ประเภท", "หน่วยงาน", "หน่วยงานย่อย", "วิธีจัดซื้อ", "งบประมาณ", "ราคากลาง",
       "ราคาที่ตกลง", "มูลค่าสัญญา", "จังหวัด", "อำเภอ", "เลขนิติบุคคลผู้ชนะ", "ชื่อผู้ชนะ", "เลขที่สัญญา", "วันที่ลงนาม",
@@ -38,5 +39,6 @@ export async function GET(req: Request) {
       r.end_date, r.contract_status, "ระบบ e-GP (สพร., data.go.th, CC-BY) ผ่าน ThaiDataCorp",
     ]),
   );
-  return csvResponse(`thaidatacorp-contracts-${company ?? agency}.csv`, csv);
+  const label = f.winner?.replace(/\D/g, "").length === 13 ? f.winner : f.agency ?? new Date().toISOString().slice(0, 10);
+  return csvResponse(`thaidatacorp-contracts-${label}.csv`, csv);
 }

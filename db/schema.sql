@@ -354,3 +354,12 @@ ALTER TABLE app_user
   ADD COLUMN IF NOT EXISTS last_failed_login_at DATETIME     NULL;
 -- Facebook ส่งอีเมลที่ตรงกับบัญชีที่มีรหัสผ่าน → ต้องกรอกรหัสผ่านก่อนเชื่อม (กันคนสมัครดักอีเมลคนอื่นไว้ก่อน)
 ALTER TABLE oauth_pending ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL;
+
+-- v14: ค้นหาขั้นสูง — กรอง/เรียงตามทุนจดทะเบียน
+ALTER TABLE juristic ADD INDEX IF NOT EXISTS idx_capital (register_capital);
+
+-- v15: ค้นหาสัญญาภาครัฐ (สมาชิก) — เรียงตามวันลงนาม / กรองจังหวัด / วิธีจัดซื้อ
+ALTER TABLE procurement_contract
+  ADD INDEX IF NOT EXISTS idx_sign (sign_date),
+  ADD INDEX IF NOT EXISTS idx_province_sign (province, sign_date),
+  ADD INDEX IF NOT EXISTS idx_method_sign (method, sign_date);

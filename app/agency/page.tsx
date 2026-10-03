@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { getProvider } from "@/lib/api";
 import { agencyUrl, formatMillionBaht, formatNumber, SITE_NAME } from "@/lib/format";
 import { listTopAgencies } from "@/lib/procurement-repo";
+import { AgencyFields, FilterBox } from "@/components/FilterForms";
+import { listContractProvinces } from "@/lib/procurement-search";
 
 export const revalidate = 86400;
 
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
 
 export default async function AgencyIndexPage() {
   if (getProvider() !== "db") notFound();
-  const agencies = await listTopAgencies(500);
+  const [agencies, provinces] = await Promise.all([listTopAgencies(500), listContractProvinces()]);
   return (
     <main className="mx-auto max-w-6xl px-4 py-4">
       <nav aria-label="breadcrumb" className="mb-2 text-sm text-wiki-muted">
@@ -30,6 +32,9 @@ export default async function AgencyIndexPage() {
           {agencies.length} หน่วยงานภาครัฐที่มีมูลค่าสัญญาจัดซื้อจัดจ้างกับนิติบุคคลสูงสุดในปีงบประมาณ 2568 จากข้อมูลระบบ e-GP
           ดูอันดับ <Link href="/procurement">บริษัทที่ได้งานภาครัฐมากที่สุด</Link> ได้ใน {SITE_NAME}
         </p>
+        <FilterBox title="ค้นหา / กรอง / ดาวน์โหลดรายชื่อหน่วยงาน (ทั้งหมดราว 29,000 หน่วยงาน)" action="/agency/search" exportAction="/export/agencies">
+          <AgencyFields provinces={provinces} />
+        </FilterBox>
         <div className="overflow-x-auto">
           <table className="wikitable">
             <thead>

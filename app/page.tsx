@@ -54,6 +54,10 @@ export default async function HomePage() {
             <b>เครื่องมือสมาชิก</b>
             <ul className="mt-1 list-disc pl-5">
               <li>
+                <Link href="/search">ค้นหาขั้นสูง</Link> — กรองตามประเภทธุรกิจ จังหวัด สถานะ วันจดทะเบียน ทุน และบริษัทที่เคยได้งานภาครัฐ
+                แล้วดาวน์โหลดผลเป็น CSV
+              </li>
+              <li>
                 <Link href="/new">กรองบริษัทเปิดใหม่</Link> ตามเดือน จังหวัด และประเภทธุรกิจ แล้ว<b>ดาวน์โหลด CSV</b>
               </li>
               <li>

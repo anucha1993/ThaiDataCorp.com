@@ -97,6 +97,10 @@ export default function ProcurementSection({
           <a href={exportHref} rel="nofollow">
             ⬇ ดาวน์โหลดสัญญาทั้งหมดเป็น CSV
           </a>{" "}
+          ·{" "}
+          <a href={exportHref.replace("/export/contracts?company=", "/procurement/contracts?winner=")} rel="nofollow">
+            🔎 ค้นหา / กรองสัญญาของบริษัทนี้
+          </a>{" "}
           <span className="text-xs text-wiki-muted">{exportNote}</span>
         </p>
       )}

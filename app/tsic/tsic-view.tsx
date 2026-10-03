@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CompanyTable from "@/components/CompanyTable";
+import { CompanyFields, FilterBox } from "@/components/FilterForms";
 import { getProvider } from "@/lib/api";
 import { formatNumber, inProvince, SITE_NAME, SITE_URL, toBuddhistYear, tsicUrl } from "@/lib/format";
 import {
@@ -245,6 +246,9 @@ export async function TsicView({ code, province }: { code: string; province?: st
                   {!province && " — เลือกจังหวัดจากตารางด้านบนเพื่อดูรายชื่อเพิ่มเติม"}
                 </p>
               )}
+              <FilterBox title={`กรอง / ดาวน์โหลดรายชื่อธุรกิจ${name}`} action="/search" exportAction="/export/search" hidden={{ tsic: code }}>
+                <CompanyFields provinces={provinces.map((p) => p.province).sort((x, y) => x.localeCompare(y, "th"))} province={province} />
+              </FilterBox>
               <CompanyTable companies={companies} showProvince={!province} />
             </section>
 

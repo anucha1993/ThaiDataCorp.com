@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import WinnerTable from "@/components/WinnerTable";
+import { ContractFields, FilterBox } from "@/components/FilterForms";
+import { listContractProvinces } from "@/lib/procurement-search";
 import WatchButton from "@/components/WatchButton";
 import { memberToolNote } from "@/lib/billing";
 import { decodeParam } from "@/app/tsic/tsic-view";
@@ -49,10 +51,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function AgencyPage({ params }: Props) {
   const a = await load((await params).name);
   if (!a) notFound();
-  const [winners, methods, latest] = await Promise.all([
+  const [winners, methods, latest, contractProvinces] = await Promise.all([
     getAgencyTopWinners(a.agency, 50),
     getAgencyMethods(a.agency),
     getAgencyLatest(a.agency, 50),
+    listContractProvinces(),
   ]);
   const top5Share = a.totalValue > 0 ? (winners.slice(0, 5).reduce((s, w) => s + w.value, 0) / a.totalValue) * 100 : 0;
   const pageUrl = `${SITE_URL}${agencyUrl(a.agency)}`;
@@ -103,6 +106,16 @@ export default async function AgencyPage({ params }: Props) {
             <WatchButton kind="agency" target={a.agency} back={agencyUrl(a.agency)} label="ติดตามหน่วยงานนี้" />
           </div>
         </div>
+
+        <FilterBox
+          title="ค้นหา / กรอง / ดาวน์โหลดสัญญาของหน่วยงานนี้"
+          action="/procurement/contracts"
+          exportAction="/export/contracts"
+          hidden={{ agency: a.agency }}
+          open={false}
+        >
+          <ContractFields provinces={contractProvinces} fixedAgency />
+        </FilterBox>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
           <aside className="lg:sticky lg:top-4 lg:col-start-2 lg:row-start-1">

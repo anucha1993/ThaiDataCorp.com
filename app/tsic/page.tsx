@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { getProvider } from "@/lib/api";
 import { formatNumber, SITE_NAME, tsicUrl } from "@/lib/format";
 import { getTsicTree } from "@/lib/tsic-repo";
+import { CompanyFields, FilterBox, fieldCls } from "@/components/FilterForms";
+import { listProvinces, listTsicDivisions } from "@/lib/search-repo";
 
 export const revalidate = 86400;
 
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
 
 export default async function TsicIndexPage() {
   if (getProvider() !== "db") notFound();
-  const tree = await getTsicTree();
+  const [tree, divisions, provinces] = await Promise.all([getTsicTree(), listTsicDivisions(), listProvinces()]);
   const total = tree.reduce((s, x) => s + x.count, 0);
 
   return (
@@ -31,6 +33,25 @@ export default async function TsicIndexPage() {
           <b>การจัดประเภทมาตรฐานอุตสาหกรรมประเทศไทย (TSIC 2552)</b> ของสำนักงานสถิติแห่งชาติ ทั้งหมด {tree.length} หมวดใหญ่
           เลือกประเภทธุรกิจเพื่อดูจำนวนนิติบุคคลแยกตามจังหวัดและรายชื่อบริษัท
         </p>
+
+        <FilterBox title="ค้นหา / ดาวน์โหลดรายชื่อบริษัทตามประเภทธุรกิจ" action="/search" exportAction="/export/search">
+          <label className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+            ประเภทธุรกิจ (หมวด TSIC)
+            <select name="tsic" defaultValue="" className={fieldCls}>
+              <option value="">ทุกประเภท</option>
+              {divisions.map((s) => (
+                <optgroup key={s.code} label={`${s.code} — ${s.name}`}>
+                  {s.divisions.map((d) => (
+                    <option key={d.code} value={d.code}>
+                      {d.code} {d.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <CompanyFields provinces={provinces} />
+        </FilterBox>
 
         <nav aria-labelledby="toc-h" className="my-5 inline-block border border-wiki-border bg-wiki-bg px-4 py-2 text-sm">
           <h2 id="toc-h" className="mb-1 text-center font-bold">

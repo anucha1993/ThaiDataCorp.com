@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import WinnerTable from "@/components/WinnerTable";
+import { FilterBox, WinnerFields } from "@/components/FilterForms";
 import { getProvider } from "@/lib/api";
 import { formatMillionBaht, formatNumber, inProvince, procurementUrl, SITE_NAME } from "@/lib/format";
 import { getTopWinners, listProcurementProvinces } from "@/lib/procurement-repo";
@@ -63,6 +64,13 @@ export async function ProcurementView({ province }: { province?: string }) {
           {d.current && ` กับผู้รับสัญญา ${formatNumber(d.current.winners)} ราย`}{" "}
           ตารางด้านล่างแสดง {winners.length} อันดับแรกตามมูลค่าสัญญารวม
           {!province && <> ดูเพิ่มเติม: <Link href="/agency">หน่วยงานรัฐที่จัดซื้อจัดจ้างมากที่สุด</Link></>}
+        </p>
+
+        <FilterBox title="ค้นหา / กรอง / ดาวน์โหลดรายชื่อผู้รับงานภาครัฐ" action="/procurement/winners" exportAction="/export/winners">
+          <WinnerFields f={{ province, sort: "value" }} provinces={d.provinces.map((p) => p.province).sort((x, y) => x.localeCompare(y, "th"))} />
+        </FilterBox>
+        <p className="-mt-2 mb-2 text-sm">
+          ต้องการดูรายสัญญา? <Link href={`/procurement/contracts${province ? `?province=${encodeURIComponent(province)}` : ""}`}>ค้นหาสัญญาจัดซื้อจัดจ้าง →</Link>
         </p>
 
         <h2 className="wiki-h2">อันดับผู้รับสัญญา{province ? ` ${inProvince(province)}` : ""}</h2>
