@@ -9,6 +9,8 @@ import SignalsSection from "@/components/SignalsSection";
 import SameAddressSection from "@/components/SameAddressSection";
 import VatSection from "@/components/VatSection";
 import ChangeHistory from "@/components/ChangeHistory";
+import CompetitorSection from "@/components/CompetitorSection";
+import { getCompetitorInfo } from "@/lib/competitor-repo";
 import { listCompanyChanges } from "@/lib/changes-repo";
 import { getVatInfo } from "@/lib/vat-repo";
 import ExternalLookup from "@/components/ExternalLookup";
@@ -107,7 +109,7 @@ export default async function CompanyPage({ params }: PageProps) {
   const data = await getCompany(id);
   if (!data) notFound();
   const db = getProvider() === "db";
-  const [contact, views, bizProfile, verified, bizJobs, bizNews, dirSource, vat, changes] = db
+  const [contact, views, bizProfile, verified, bizJobs, bizNews, dirSource, vat, changes, competitors] = db
     ? await Promise.all([
         getJuristicContact(id).catch(() => null),
         getEntityDaily("company", id, 30).catch(() => null),
@@ -118,8 +120,9 @@ export default async function CompanyPage({ params }: PageProps) {
         directorSource(id).catch(() => null),
         getVatInfo(id).catch(() => null),
         listCompanyChanges(id).catch(() => []),
+        data.procurement ? getCompetitorInfo(id).catch(() => null) : null,
       ])
-    : [null, null, null, false, [], [], null, null, []];
+    : [null, null, null, false, [], [], null, null, [], null];
   // ผู้ดูแลระงับข้อมูลจากเจ้าของกิจการ → ไม่แสดงส่วนที่บริษัทเขียนเอง
   const showBiz = verified && !bizProfile?.hidden;
 
@@ -303,6 +306,7 @@ export default async function CompanyPage({ params }: PageProps) {
                   exportNote={await memberToolNote("contracts")}
                 />
               )}
+              {competitors && <CompetitorSection info={competitors} />}
               {data.signals && data.signals.length > 0 && <SignalsSection signals={data.signals} />}
               {data.sameAddress && data.sameAddress.total > 0 && <SameAddressSection data={data.sameAddress} />}
 

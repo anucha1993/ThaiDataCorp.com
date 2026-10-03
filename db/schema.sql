@@ -565,3 +565,23 @@ CREATE TABLE IF NOT EXISTS juristic_change (
   KEY idx_field_detected (field, detected_at),
   KEY idx_juristic (juristic_id, detected_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v26: บันทึกการค้นหาขั้นสูงทั้งชุด (Lead Finder) — แจ้งเตือนรายชื่อใหม่ที่ตรงเงื่อนไขทางอีเมล
+ALTER TABLE saved_search
+  ADD COLUMN IF NOT EXISTS query VARCHAR(1000) NULL COMMENT 'query string ของ /search (ตัวกรองครบชุด)' AFTER province,
+  ADD COLUMN IF NOT EXISTS label VARCHAR(255)  NULL AFTER query;
+
+-- v27: สรุปผู้ชนะต่อหน่วยงาน (วิเคราะห์คู่แข่งงานภาครัฐ) — สร้างใหม่ทุกครั้งหลัง sync:egp
+CREATE TABLE IF NOT EXISTS procurement_agency_winner (
+  agency       VARCHAR(255)  NOT NULL,
+  winner_id    CHAR(13)      NOT NULL,
+  contracts    INT           NOT NULL,
+  total_value  DECIMAL(20,2) NOT NULL,
+  avg_discount DECIMAL(7,4)  NULL COMMENT 'ส่วนต่างจากราคากลางเฉลี่ย (0.05 = ต่ำกว่าราคากลาง 5%)',
+  PRIMARY KEY (agency, winner_id),
+  KEY idx_winner (winner_id, contracts),
+  KEY idx_agency_value (agency, total_value)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v28: รายงานรายเดือนนับผู้จด VAT ใหม่ตามวันที่อนุมัติ (sync-vat สร้างตารางใหม่แบบ LIKE จึงได้ index นี้ด้วย)
+ALTER TABLE juristic_vat ADD INDEX IF NOT EXISTS idx_approved (approved_date, branch_no);

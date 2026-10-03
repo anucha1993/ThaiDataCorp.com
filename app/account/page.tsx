@@ -190,22 +190,31 @@ export default async function AccountPage({ searchParams }: Props) {
       )}
 
       <h2 id="searches" className="wiki-h2">
-        แจ้งเตือนบริษัทเปิดใหม่{" "}
+        แจ้งเตือนรายชื่อใหม่ (การค้นหาที่บันทึก){" "}
         <span className="text-base text-wiki-muted">
           ({searches.length}/{plan.maxSavedSearches})
         </span>
       </h2>
       <p className="mb-2 text-sm text-wiki-muted">
-        รับอีเมลรายชื่อบริษัทที่จดทะเบียนใหม่ตามประเภทธุรกิจและ/หรือจังหวัดที่เลือก — ดูรหัสประเภทธุรกิจได้ที่{" "}
-        <Link href="/tsic">หน้าประเภทธุรกิจ</Link>
+        รับอีเมลรายชื่อนิติบุคคลที่จดทะเบียนใหม่ตามเงื่อนไข — ตั้งเงื่อนไขละเอียด (ทุน จด VAT เคยได้งานรัฐ ฯลฯ) ได้ที่{" "}
+        <Link href="/search">ค้นหาขั้นสูง</Link> แล้วกด &ldquo;บันทึกการค้นหานี้&rdquo; หรือเพิ่มแบบง่ายด้านล่าง
       </p>
       {searches.length > 0 && (
         <ul className="mb-3 space-y-1 text-sm">
           {searches.map((s) => (
             <li key={s.id} className="flex items-center gap-3">
-              <span>
-                {s.tsicCode ? `${s.tsicName ?? ""} (${s.tsicCode})` : "ทุกประเภทธุรกิจ"} · {s.province ?? "ทุกจังหวัด"}
-              </span>
+              {s.query ? (
+                <span>
+                  {s.label ?? s.query} · <Link href={`/search?${s.query}`}>ดูผล</Link> ·{" "}
+                  <a href={`/export/search?${s.query}`} rel="nofollow">
+                    CSV
+                  </a>
+                </span>
+              ) : (
+                <span>
+                  {s.tsicCode ? `${s.tsicName ?? ""} (${s.tsicCode})` : "ทุกประเภทธุรกิจ"} · {s.province ?? "ทุกจังหวัด"}
+                </span>
+              )}
               <form action={removeSearch}>
                 <input type="hidden" name="id" value={s.id} />
                 <button type="submit" className="text-wiki-link hover:underline">

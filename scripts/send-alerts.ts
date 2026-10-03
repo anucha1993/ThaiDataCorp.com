@@ -28,6 +28,7 @@ async function main() {
   const { effectivePlan, isBillingEnabled } = await import("@/lib/billing");
   const billing = await isBillingEnabled();
   const { SITE_NAME, SITE_URL, formatNumber, formatThaiDate, agencyUrl } = await import("@/lib/format");
+  const { buildWhere, filtersFromQuery } = await import("@/lib/search-filters");
   type Row = import("mysql2").RowDataPacket;
   const pool = getPool();
   const q = async <T extends Row[]>(sql: string, params: unknown[] = []) => (await pool.query<T>(sql, params))[0];
@@ -75,11 +76,23 @@ async function main() {
       : [];
 
     const searches = await q<Row[]>(
-      `SELECT s.tsic_code, s.province, t.name_th FROM saved_search s LEFT JOIN tsic t ON t.code = s.tsic_code WHERE s.user_id = ?`,
+      `SELECT s.tsic_code, s.province, s.query, s.label, t.name_th FROM saved_search s LEFT JOIN tsic t ON t.code = s.tsic_code WHERE s.user_id = ?`,
       [u.id],
     );
     const newCompanies: Array<{ label: string; rows: Row[] }> = [];
     for (const s of searches) {
+      if (s.query) {
+        // Lead Finder: ตัวกรองครบชุดเหมือนหน้า /search + เฉพาะรายที่เพิ่งเข้าระบบและเพิ่งจดทะเบียน
+        const { where, params } = buildWhere(filtersFromQuery(s.query));
+        const rows = await q<Row[]>(
+          `SELECT j.id, j.name_th, j.register_date, j.register_capital, j.province FROM juristic j
+           WHERE ${where} AND j.created_at > ? AND j.register_date >= DATE(?) - INTERVAL 45 DAY
+           ORDER BY j.register_date DESC LIMIT ?`,
+          [...params, u.since, u.since, MAX_ITEMS],
+        );
+        if (rows.length) newCompanies.push({ label: s.label ?? s.query, rows });
+        continue;
+      }
       const where = [`created_at > ?`, `register_date >= DATE(?) - INTERVAL 45 DAY`];
       const params: unknown[] = [u.since, u.since];
       if (s.tsic_code) (where.push(`tsic_code = ?`), params.push(s.tsic_code));

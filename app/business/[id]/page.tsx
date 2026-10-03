@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { removeNewsPost, saveCompanyProfile, saveDirectors, toggleJob } from "@/app/business/actions";
 import FileGuard from "@/components/FileGuard";
+import BadgeEmbed from "@/components/BadgeEmbed";
 import RowListEditor from "@/components/RowListEditor";
 import FilePicker from "@/components/FilePicker";
 import Panel, { buttonCls, inputCls, Notice, primaryButtonCls } from "@/components/Panel";
@@ -21,7 +22,7 @@ import {
 } from "@/lib/business";
 import { findJuristicById } from "@/lib/company-repo";
 import { getCompany } from "@/lib/api";
-import { formatThaiDate } from "@/lib/format";
+import { formatThaiDate, SITE_URL } from "@/lib/format";
 import { getJuristicContact } from "@/lib/support";
 import { mediaUrl } from "@/lib/uploads";
 
@@ -248,6 +249,24 @@ export default async function CompanyDashboard({ params, searchParams }: Props) 
           </table>
         )}
       </section>
+
+      {/* ------------------------------------------------- ป้ายยืนยันสำหรับเว็บไซต์ */}
+      {!profile?.hidden && (
+        <section id="badge">
+          <h2 className="wiki-h2">ป้าย &ldquo;ยืนยันบริษัทแล้ว&rdquo; สำหรับเว็บไซต์ของคุณ</h2>
+          <p className="mb-2 text-sm">
+            ติดป้ายนี้ที่ส่วนท้ายเว็บไซต์บริษัท ลูกค้ากดแล้วจะมาที่หน้าบริษัทบน ThaiDataCorp เพื่อตรวจสอบข้อมูลทะเบียนได้ทันที — ป้ายอัปเดตอัตโนมัติ
+            และจะหายไปเองหากการยืนยันถูกยกเลิก
+          </p>
+          <div className="mb-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/badge/${id}.svg`} alt="ยืนยันบริษัทแล้วโดย ThaiDataCorp" width={236} height={44} />
+          </div>
+          <BadgeEmbed
+            code={`<a href="${SITE_URL}/company/${id}" target="_blank" rel="noopener"><img src="${SITE_URL}/badge/${id}.svg" alt="ยืนยันบริษัทแล้วโดย ThaiDataCorp" width="236" height="44"></a>`}
+          />
+        </section>
+      )}
 
       {/* ----------------------------------------------------------- ข่าวสาร */}
       <section id="news">

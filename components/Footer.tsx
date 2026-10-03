@@ -30,6 +30,7 @@ export default async function Footer() {
           <Link href="/search">ค้นหา</Link>
           <Link href="/new">บริษัทเปิดใหม่</Link>
           <Link href="/changes">ความเคลื่อนไหวบริษัท</Link>
+          <Link href="/report">ดัชนีธุรกิจรายเดือน</Link>
           <Link href="/tsic">ประเภทธุรกิจ</Link>
           <Link href="/procurement">ผู้รับงานภาครัฐ</Link>
           <Link href="/agency">หน่วยงานรัฐ</Link>

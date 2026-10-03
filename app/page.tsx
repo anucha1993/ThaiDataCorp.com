@@ -101,6 +101,7 @@ export default async function HomePage() {
               {[
                 ["/new", "บริษัทเปิดใหม่"],
                 ["/changes", "ความเคลื่อนไหวบริษัท"],
+                ["/report", "ดัชนีธุรกิจรายเดือน"],
                 ["/tsic", "ประเภทธุรกิจ"],
                 ["/procurement", "ผู้รับงานภาครัฐ"],
                 ["/procurement/contracts", "สัญญาภาครัฐ"],

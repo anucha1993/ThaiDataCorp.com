@@ -3,6 +3,8 @@
  * Server Actions ของระบบสมาชิก — ทุกฟังก์ชันตรวจสิทธิ์เองเสมอ (เรียกตรงด้วย POST ได้)
  */
 import { headers } from "next/headers";
+import { describeFilters, filtersFromQuery, filtersToQuery } from "@/lib/search-filters";
+import { getTsicName } from "@/lib/tsic-name";
 import { redirect } from "next/navigation";
 import {
   createSessionForUser,
@@ -18,6 +20,7 @@ import {
 } from "@/lib/auth";
 import {
   addSavedSearch,
+  addSavedQuery,
   addWatch,
   cancelOrder,
   createOrder,
@@ -156,6 +159,20 @@ export async function addSearch(formData: FormData) {
   const province = String(formData.get("province") ?? "").trim() || null;
   const res = await addSavedSearch(user.id, user.plan, tsic && /^\d{5}$/.test(tsic) ? tsic : null, province);
   redirect(res === "ok" ? "/account?ok=search#searches" : `/account?error=search-${res}#searches`);
+}
+
+/** บันทึกการค้นหาขั้นสูงจากหน้า /search (Lead Finder) — แจ้งเตือนรายชื่อใหม่ที่ตรงเงื่อนไขทางอีเมล */
+export async function saveSearchQuery(formData: FormData) {
+  const raw = String(formData.get("query") ?? "").slice(0, 1000);
+  const f = filtersFromQuery(raw);
+  // เก็บรูปแบบมาตรฐาน (ตัด page/ค่าที่ไม่ถูกต้องทิ้ง) กันบันทึกซ้ำต่างรูปแบบ
+  const query = filtersToQuery(f);
+  const back = `/search?${query}`;
+  const user = await requireUser(back);
+  if (!query) redirect(back);
+  const tsicName = f.tsic ? await getTsicName(f.tsic) : null;
+  const res = await addSavedQuery(user.id, user.plan, query, describeFilters(f, tsicName));
+  redirect(`${back}&saved=${res}`);
 }
 
 export async function removeSearch(formData: FormData) {

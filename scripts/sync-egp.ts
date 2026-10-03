@@ -182,8 +182,13 @@ async function main() {
 }
 
 /** ตารางสรุปสำหรับหน้าบริษัท / หน่วยงาน / จัดอันดับรายจังหวัด — สร้างใหม่ทั้งหมดทุกครั้ง */
+/** ส่วนต่างจากราคากลางเฉลี่ย — เฉพาะสัญญาที่มีราคากลาง และราคาที่ตกลงไม่เกิน 1.5 เท่า (ตัดข้อมูลผิดปกติ) */
+const PRICE_DISCOUNT_SQL = `AVG(CASE WHEN ref_price > 0 AND agreed_price > 0 AND agreed_price <= ref_price * 1.5
+  THEN (ref_price - agreed_price) / ref_price END)`;
+
 async function buildSummaries(pool: import("mysql2/promise").Pool) {
   const VALUE = `COALESCE(contract_value, agreed_price, 0)`;
+  const DISCOUNT = PRICE_DISCOUNT_SQL;
   const steps: Array<[string, string[]]> = [
     [
       "procurement_summary (ต่อบริษัท)",
@@ -207,6 +212,15 @@ async function buildSummaries(pool: import("mysql2/promise").Pool) {
            SELECT agency, province, ROW_NUMBER() OVER (PARTITION BY agency ORDER BY COUNT(*) DESC) rn
            FROM procurement_contract WHERE agency IS NOT NULL AND province IS NOT NULL GROUP BY agency, province
          ) t ON t.agency = s.agency AND t.rn = 1 SET s.top_province = t.province`,
+      ],
+    ],
+    [
+      "procurement_agency_winner (ผู้ชนะต่อหน่วยงาน / คู่แข่ง)",
+      [
+        `TRUNCATE TABLE procurement_agency_winner`,
+        `INSERT INTO procurement_agency_winner (agency, winner_id, contracts, total_value, avg_discount)
+         SELECT agency, winner_id, COUNT(*), COALESCE(SUM(${VALUE}), 0), ${DISCOUNT}
+         FROM procurement_contract WHERE agency IS NOT NULL GROUP BY agency, winner_id`,
       ],
     ],
     [

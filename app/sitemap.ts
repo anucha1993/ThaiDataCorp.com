@@ -6,6 +6,7 @@ import { listAgencySitemapNames, listProcurementProvinces } from "@/lib/procurem
 import { listNewSitemapPaths } from "@/lib/new-repo";
 import { listTsicSitemapPaths } from "@/lib/tsic-repo";
 import { listLiveJobIds, listPublishedNewsIds } from "@/lib/business";
+import { listReportMonths } from "@/lib/report-repo";
 
 export const revalidate = 86400;
 
@@ -22,13 +23,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       console.error("[sitemap] failed:", e);
       return [] as T[];
     });
-  const [tsicPaths, agencies, provinces, newPaths, jobs, news] = await Promise.all([
+  const [tsicPaths, agencies, provinces, newPaths, jobs, news, reports] = await Promise.all([
     safe(listTsicSitemapPaths()),
     safe(listAgencySitemapNames()),
     safe(listProcurementProvinces()),
     safe(listNewSitemapPaths()),
     safe(listLiveJobIds()),
     safe(listPublishedNewsIds()),
+    safe(listReportMonths()),
   ]);
   const paths = [
     ...newPaths,
@@ -39,6 +41,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/terms",
     "/contact",
     "/changes",
+    "/report",
+    ...reports.map((m) => `/report/${m.ym}`),
     "/jobs",
     "/news",
     "/business",
@@ -53,7 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...paths.map((p) => ({
       url: `${SITE_URL}${p}`,
       changeFrequency: "weekly" as const,
-      priority: ["/new", "/changes", "/tsic", "/procurement", "/agency"].includes(p) ? 0.9 : p.split("/").length === 3 ? 0.7 : 0.6,
+      priority: ["/new", "/changes", "/report", "/tsic", "/procurement", "/agency"].includes(p) ? 0.9 : p.split("/").length === 3 ? 0.7 : 0.6,
     })),
   ];
 }

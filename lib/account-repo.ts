@@ -54,15 +54,25 @@ export interface SavedSearch {
   tsicCode: string | null;
   tsicName: string | null;
   province: string | null;
+  /** ตัวกรองค้นหาขั้นสูงครบชุด (query string ของ /search) — ถ้ามีใช้แทน tsic/province */
+  query: string | null;
+  label: string | null;
 }
 
 export async function listSavedSearches(userId: number): Promise<SavedSearch[]> {
   const rows = await dbQuery<RowDataPacket[]>(
-    `SELECT s.id, s.tsic_code, t.name_th, s.province FROM saved_search s LEFT JOIN tsic t ON t.code = s.tsic_code
+    `SELECT s.id, s.tsic_code, t.name_th, s.province, s.query, s.label FROM saved_search s LEFT JOIN tsic t ON t.code = s.tsic_code
      WHERE s.user_id = ? ORDER BY s.id`,
     [userId],
   );
-  return rows.map((r) => ({ id: r.id, tsicCode: r.tsic_code, tsicName: r.name_th?.trim() ?? null, province: r.province }));
+  return rows.map((r) => ({
+    id: r.id,
+    tsicCode: r.tsic_code,
+    tsicName: r.name_th?.trim() ?? null,
+    province: r.province,
+    query: r.query ?? null,
+    label: r.label ?? null,
+  }));
 }
 
 export async function addSavedSearch(
@@ -79,6 +89,16 @@ export async function addSavedSearch(
   const [c] = await dbQuery<RowDataPacket[]>(`SELECT COUNT(*) n FROM saved_search WHERE user_id = ?`, [userId]);
   if (Number(c?.n ?? 0) >= plan.maxSavedSearches) return "limit";
   await dbQuery(`INSERT INTO saved_search (user_id, tsic_code, province) VALUES (?, ?, ?)`, [userId, tsic, province]);
+  return "ok";
+}
+
+/** บันทึกการค้นหาขั้นสูงทั้งชุด (Lead Finder) — ซ้ำกับที่มีอยู่ถือว่าสำเร็จ */
+export async function addSavedQuery(userId: number, plan: Plan, query: string, label: string): Promise<"ok" | "limit"> {
+  const [dup] = await dbQuery<RowDataPacket[]>(`SELECT 1 FROM saved_search WHERE user_id = ? AND query = ?`, [userId, query]);
+  if (dup) return "ok";
+  const [c] = await dbQuery<RowDataPacket[]>(`SELECT COUNT(*) n FROM saved_search WHERE user_id = ?`, [userId]);
+  if (Number(c?.n ?? 0) >= plan.maxSavedSearches) return "limit";
+  await dbQuery(`INSERT INTO saved_search (user_id, query, label) VALUES (?, ?, ?)`, [userId, query, label.slice(0, 255)]);
   return "ok";
 }
 

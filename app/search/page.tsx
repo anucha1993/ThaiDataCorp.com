@@ -17,6 +17,7 @@ import {
   type SearchFilters,
 } from "@/lib/search-repo";
 import { primaryButtonCls } from "@/components/Panel";
+import { saveSearchQuery } from "@/app/actions";
 import { ProvinceSelect, tsicDivisionOptions } from "@/components/FilterForms";
 import SearchableSelect from "@/components/SearchableSelect";
 import StatusBadge from "@/components/StatusBadge";
@@ -38,6 +39,7 @@ export default async function SearchPage({ searchParams }: SearchProps) {
   const f = parseFilters(sp);
   const query = f.q ?? "";
   const page = Math.max(1, Math.min(200, Number(Array.isArray(sp.page) ? sp.page[0] : sp.page) || 1));
+  const saved = Array.isArray(sp.saved) ? sp.saved[0] : sp.saved;
 
   // พิมพ์เลขทะเบียน 13 หลัก → ไปหน้าบริษัททันที
   const asId = normalizeJuristicIdInput(query);
@@ -147,7 +149,26 @@ export default async function SearchPage({ searchParams }: SearchProps) {
                   ⬇ ดาวน์โหลดผลค้นหาเป็น CSV
                 </a>
               )}
+              {advancedOn && (
+                <form action={saveSearchQuery}>
+                  <input type="hidden" name="query" value={filtersToQuery(f)} />
+                  <button type="submit" className="font-bold text-wiki-link hover:underline" title="รับอีเมลเมื่อมีนิติบุคคลใหม่ที่ตรงเงื่อนไขนี้">
+                    🔔 บันทึกการค้นหานี้ + แจ้งเตือนรายชื่อใหม่
+                  </button>
+                </form>
+              )}
             </div>
+            {saved === "ok" && (
+              <p role="status" className="mb-2 border border-green-700 bg-green-50 px-3 py-2 text-sm text-green-900">
+                บันทึกการค้นหาแล้ว — ระบบจะส่งอีเมลเมื่อมีนิติบุคคลใหม่ที่ตรงเงื่อนไข จัดการได้ที่ <Link href="/account#searches">บัญชีของฉัน</Link>
+              </p>
+            )}
+            {saved === "limit" && (
+              <p role="alert" className="mb-2 border border-red-700 bg-red-50 px-3 py-2 text-sm text-red-900">
+                การค้นหาที่บันทึกครบจำนวนของแพ็กเกจแล้ว — ลบรายการเดิมที่ <Link href="/account#searches">บัญชีของฉัน</Link> หรือ{" "}
+                <Link href="/pricing">อัปเกรดแพ็กเกจ</Link>
+              </p>
+            )}
             <ul className="divide-y divide-wiki-border-light">
               {results.map((p) => (
                 <li key={p.id} className="py-3">
