@@ -53,6 +53,13 @@ export const JOBS: JobDef[] = [
     staleMinutes: 30,
   },
   {
+    key: "sync-vat",
+    label: "Sync ทะเบียนภาษีมูลค่าเพิ่ม (กรมสรรพากร)",
+    description: "ดึงรายชื่อนิติบุคคลที่จด VAT พร้อมสาขาทั้งหมด (~320 MB) แล้วแทนที่ทั้งชุด — เดือนละครั้ง",
+    script: "sync-vat.ts",
+    staleMinutes: 30,
+  },
+  {
     key: "alerts",
     label: "ส่งอีเมลแจ้งเตือนสมาชิก",
     description: "สัญญาภาครัฐใหม่ของรายการที่ติดตาม + บริษัทเปิดใหม่ตามเงื่อนไข",

@@ -100,6 +100,7 @@ export default async function HomePage() {
             <nav aria-label="เมนูหลัก" className="mt-4 flex flex-wrap gap-2 text-sm">
               {[
                 ["/new", "บริษัทเปิดใหม่"],
+                ["/changes", "ความเคลื่อนไหวบริษัท"],
                 ["/tsic", "ประเภทธุรกิจ"],
                 ["/procurement", "ผู้รับงานภาครัฐ"],
                 ["/procurement/contracts", "สัญญาภาครัฐ"],

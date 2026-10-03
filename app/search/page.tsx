@@ -269,6 +269,10 @@ function AdvancedFields({
           <input type="checkbox" name="gov" value="1" defaultChecked={f.gov} />
           เคยได้งานภาครัฐ (e-GP)
         </label>
+        <label className="flex items-center gap-2 self-end pb-1">
+          <input type="checkbox" name="vat" value="1" defaultChecked={f.vat} />
+          จดทะเบียนภาษีมูลค่าเพิ่ม (VAT)
+        </label>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <button type="submit" className="border border-wiki-link bg-wiki-link px-4 py-1.5 font-bold text-white hover:opacity-90">

@@ -15,6 +15,7 @@
     "sync:egp": "tsx scripts/sync-egp.ts",
     "backfill:dbd": "tsx scripts/backfill-dbd.ts",
     "refresh:dbd": "tsx scripts/refresh-dbd.ts",
+    "sync:vat": "tsx scripts/sync-vat.ts",
     "alerts": "tsx scripts/send-alerts.ts",
     "jobs:tick": "tsx scripts/jobs-tick.ts",
     "job": "tsx scripts/run-job.ts",

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { formatBaht, formatJuristicId, formatThaiDate, SITE_NAME, tsicUrl } from "@/lib/format";
 import type { JuristicProfile, ProcurementSummary } from "@/types/company";
 import StatusBadge from "@/components/StatusBadge";
+import { VatInfoboxValue } from "@/components/VatSection";
+import type { VatInfo } from "@/lib/vat-repo";
 
 interface InfoboxRow {
   label: string;
@@ -18,10 +20,13 @@ export default function WikipediaInfobox({
   profile,
   linkTsic = false,
   procurement,
+  vat,
 }: {
   profile: JuristicProfile;
   linkTsic?: boolean;
   procurement?: ProcurementSummary | null;
+  /** ทะเบียน VAT (มีเมื่อใช้ DB และ sync แล้ว) */
+  vat?: VatInfo | null;
 }) {
   const { address } = profile;
 
@@ -51,6 +56,10 @@ export default function WikipediaInfobox({
         "-"
       ),
     },
+    // บริษัทที่เลิกแล้วและไม่พบใน VAT ไม่ต้องแสดง (ทะเบียน VAT มีเฉพาะผู้ที่ยังประกอบกิจการ)
+    ...(vat?.loaded && (vat.registered || !profile.dissolvedDate)
+      ? [{ label: "ภาษีมูลค่าเพิ่ม", value: <VatInfoboxValue vat={vat} /> }]
+      : []),
     ...(procurement
       ? [
           {

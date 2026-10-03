@@ -7,6 +7,10 @@ import WikipediaInfobox from "@/components/WikipediaInfobox";
 import ProcurementSection from "@/components/ProcurementSection";
 import SignalsSection from "@/components/SignalsSection";
 import SameAddressSection from "@/components/SameAddressSection";
+import VatSection from "@/components/VatSection";
+import ChangeHistory from "@/components/ChangeHistory";
+import { listCompanyChanges } from "@/lib/changes-repo";
+import { getVatInfo } from "@/lib/vat-repo";
 import ExternalLookup from "@/components/ExternalLookup";
 import CompanyContact from "@/components/CompanyContact";
 import CompanyBusiness from "@/components/CompanyBusiness";
@@ -103,7 +107,7 @@ export default async function CompanyPage({ params }: PageProps) {
   const data = await getCompany(id);
   if (!data) notFound();
   const db = getProvider() === "db";
-  const [contact, views, bizProfile, verified, bizJobs, bizNews, dirSource] = db
+  const [contact, views, bizProfile, verified, bizJobs, bizNews, dirSource, vat, changes] = db
     ? await Promise.all([
         getJuristicContact(id).catch(() => null),
         getEntityDaily("company", id, 30).catch(() => null),
@@ -112,8 +116,10 @@ export default async function CompanyPage({ params }: PageProps) {
         listCompanyJobs(id, true).catch(() => []),
         listCompanyNews(id, true, 5).catch(() => []),
         directorSource(id).catch(() => null),
+        getVatInfo(id).catch(() => null),
+        listCompanyChanges(id).catch(() => []),
       ])
-    : [null, null, null, false, [], [], null];
+    : [null, null, null, false, [], [], null, null, []];
   // ผู้ดูแลระงับข้อมูลจากเจ้าของกิจการ → ไม่แสดงส่วนที่บริษัทเขียนเอง
   const showBiz = verified && !bizProfile?.hidden;
 
@@ -180,7 +186,7 @@ export default async function CompanyPage({ params }: PageProps) {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
             {/* Infobox: มือถือแสดงก่อนเนื้อหา, จอใหญ่อยู่ขวา (sticky) */}
             <div className="lg:col-start-2 lg:row-start-1">
-              <WikipediaInfobox profile={profile} linkTsic={getProvider() === "db"} procurement={data.procurement} />
+              <WikipediaInfobox profile={profile} linkTsic={getProvider() === "db"} procurement={data.procurement} vat={vat} />
               {views && <ViewsBox title="สถิติการเข้าชม 30 วันล่าสุด" data={views} />}
             </div>
 
@@ -288,6 +294,8 @@ export default async function CompanyPage({ params }: PageProps) {
                 )}
               </section>
 
+              <ChangeHistory changes={changes} />
+              {vat && <VatSection vat={vat} />}
               {data.procurement && (
                 <ProcurementSection
                   data={data.procurement}

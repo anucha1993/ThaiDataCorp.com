@@ -534,3 +534,34 @@ ALTER TABLE app_user
 
 -- v23: ทยอยอัปเดตข้อมูลบริษัทจาก DBD Open API (ข้อมูล Open-D เป็นข้อมูล ณ วันจดทะเบียน) — ทุกชั่วโมง รอบละ 1,000 ราย
 INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('refresh-dbd', 1, '5 * * * *', '--limit=1000 --rate=1');
+
+-- v24: ทะเบียนภาษีมูลค่าเพิ่ม (กรมสรรพากร, Open Data Common) — เฉพาะนิติบุคคล แยกสาขา (0 = สำนักงานใหญ่)
+--      sync-vat โหลดทั้งชุดลงตารางใหม่แล้วสลับชื่อ (ผู้ที่เลิกจด VAT จะหายไปเอง)
+CREATE TABLE IF NOT EXISTS juristic_vat (
+  tax_id        CHAR(13)      NOT NULL,
+  branch_no     INT           NOT NULL DEFAULT 0,
+  name          VARCHAR(255)  NULL COMMENT 'ชื่อผู้ประกอบการ',
+  branch_name   VARCHAR(255)  NULL COMMENT 'ชื่อสถานประกอบการ',
+  address       VARCHAR(600)  NULL,
+  province      VARCHAR(64)   NULL,
+  post_code     CHAR(5)       NULL,
+  approved_date DATE          NULL COMMENT 'วันที่ได้รับอนุมัติจดทะเบียน VAT (ค.ศ.)',
+  PRIMARY KEY (tax_id, branch_no),
+  KEY idx_province (province)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('sync-vat', 1, '30 4 5 * *', NULL);
+
+-- v25: ความเคลื่อนไหวนิติบุคคล — สิ่งที่เปลี่ยนเมื่ออัปเดตกับ DBD Open API (detected_at = วันที่ตรวจพบ ไม่ใช่วันที่จดแก้ไขจริง)
+CREATE TABLE IF NOT EXISTS juristic_change (
+  id          BIGINT        NOT NULL AUTO_INCREMENT,
+  juristic_id CHAR(13)      NOT NULL,
+  field       VARCHAR(16)   NOT NULL COMMENT 'name / capital / tsic / type / status / address',
+  old_value   VARCHAR(600)  NULL,
+  new_value   VARCHAR(600)  NULL,
+  detected_at DATETIME      NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_detected (detected_at),
+  KEY idx_field_detected (field, detected_at),
+  KEY idx_juristic (juristic_id, detected_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

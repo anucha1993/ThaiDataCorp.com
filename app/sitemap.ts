@@ -38,6 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/pricing",
     "/terms",
     "/contact",
+    "/changes",
     "/jobs",
     "/news",
     "/business",
@@ -52,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...paths.map((p) => ({
       url: `${SITE_URL}${p}`,
       changeFrequency: "weekly" as const,
-      priority: ["/new", "/tsic", "/procurement", "/agency"].includes(p) ? 0.9 : p.split("/").length === 3 ? 0.7 : 0.6,
+      priority: ["/new", "/changes", "/tsic", "/procurement", "/agency"].includes(p) ? 0.9 : p.split("/").length === 3 ? 0.7 : 0.6,
     })),
   ];
 }

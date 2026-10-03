@@ -35,6 +35,8 @@ export interface SearchFilters {
   capMax?: number;
   /** เคยได้งานภาครัฐ (e-GP) */
   gov?: boolean;
+  /** จดทะเบียนภาษีมูลค่าเพิ่ม (กรมสรรพากร) */
+  vat?: boolean;
   sort: SortKey;
 }
 
@@ -63,13 +65,14 @@ export function parseFilters(sp: Params): SearchFilters {
     capMin: money(one(sp.cap_min)),
     capMax: money(one(sp.cap_max)),
     gov: one(sp.gov) === "1",
+    vat: one(sp.vat) === "1",
     sort: sort && sort in SORTS ? (sort as SortKey) : "new",
   };
 }
 
 /** ใช้ตัวกรองขั้นสูงอยู่หรือไม่ (นอกจากชื่อ) */
 export function hasAdvanced(f: SearchFilters): boolean {
-  return Boolean(f.tsic || f.province || f.type || f.status || f.from || f.to || f.capMin != null || f.capMax != null || f.gov || f.sort !== "new");
+  return Boolean(f.tsic || f.province || f.type || f.status || f.from || f.to || f.capMin != null || f.capMax != null || f.gov || f.vat || f.sort !== "new");
 }
 
 /** แปลงตัวกรองกลับเป็น query string (สำหรับลิงก์หน้าถัดไป / CSV) */
@@ -85,6 +88,7 @@ export function filtersToQuery(f: SearchFilters, extra: Record<string, string> =
   if (f.capMin != null) q.set("cap_min", String(f.capMin));
   if (f.capMax != null) q.set("cap_max", String(f.capMax));
   if (f.gov) q.set("gov", "1");
+  if (f.vat) q.set("vat", "1");
   if (f.sort !== "new") q.set("sort", f.sort);
   for (const [k, v] of Object.entries(extra)) q.set(k, v);
   return q.toString();
@@ -113,6 +117,7 @@ function buildWhere(f: SearchFilters): { where: string; params: unknown[] } {
   if (f.capMin != null) (where.push("j.register_capital >= ?"), params.push(f.capMin));
   if (f.capMax != null) (where.push("j.register_capital <= ?"), params.push(f.capMax));
   if (f.gov) where.push("EXISTS (SELECT 1 FROM procurement_summary ps WHERE ps.winner_id = j.id)");
+  if (f.vat) where.push("EXISTS (SELECT 1 FROM juristic_vat jv WHERE jv.tax_id = j.id)");
   return { where: where.join(" AND "), params };
 }
 

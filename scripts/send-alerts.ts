@@ -7,6 +7,7 @@
  *
  * เนื้อหา:
  *   1) สัญญาภาครัฐใหม่ของบริษัท/หน่วยงานที่ติดตาม (procurement_contract.first_seen_at > รอบก่อน)
+ *   1.5) บริษัทที่ติดตามเปลี่ยนชื่อ/ทุน/สถานะ/ที่ตั้ง/ประเภทธุรกิจ (juristic_change.detected_at > รอบก่อน)
  *   2) บริษัทเปิดใหม่ตามเงื่อนไขที่ตั้งไว้ (juristic.created_at > รอบก่อน และจดทะเบียนไม่เกิน 45 วันก่อนรอบก่อน)
  * ความถี่ตามแพ็กเกจ (ฟรี = รายสัปดาห์, Pro/Business = รายวัน)
  */
@@ -64,6 +65,15 @@ async function main() {
         )
       : [];
 
+    const changes = companyIds.length
+      ? await q<Row[]>(
+          `SELECT c.juristic_id, c.field, c.old_value, c.new_value, j.name_th
+           FROM juristic_change c LEFT JOIN juristic j ON j.id = c.juristic_id
+           WHERE c.detected_at > ? AND c.juristic_id IN (?) ORDER BY c.detected_at DESC LIMIT ?`,
+          [u.since, companyIds, MAX_ITEMS],
+        )
+      : [];
+
     const searches = await q<Row[]>(
       `SELECT s.tsic_code, s.province, t.name_th FROM saved_search s LEFT JOIN tsic t ON t.code = s.tsic_code WHERE s.user_id = ?`,
       [u.id],
@@ -87,7 +97,7 @@ async function main() {
       }
     }
 
-    const total = contracts.length + newCompanies.reduce((n, g) => n + g.rows.length, 0);
+    const total = contracts.length + changes.length + newCompanies.reduce((n, g) => n + g.rows.length, 0);
     if (total > 0) {
       const lines: string[] = [];
       const html: string[] = [];
@@ -101,6 +111,21 @@ async function main() {
             `<li><a href="${SITE_URL}/company/${c.winner_id}">${c.winner_name ?? c.winner_id}</a> — ${formatThaiDate(c.sign_date)} ` +
               `<a href="${SITE_URL}${agencyUrl(c.agency)}">${c.agency}</a> มูลค่า ${formatNumber(Number(c.value ?? 0))} บาท<br><small>${c.project_name}</small></li>`,
           );
+        }
+        html.push("</ul>");
+      }
+      if (changes.length) {
+        const LABEL: Record<string, string> = {
+          name: "เปลี่ยนชื่อ", capital: "เปลี่ยนทุนจดทะเบียน", status: "เปลี่ยนสถานะ",
+          tsic: "เปลี่ยนประเภทธุรกิจ", address: "ย้ายที่ตั้ง", type: "เปลี่ยนประเภทนิติบุคคล",
+        };
+        const val = (f: string, v: string | null) => (v == null ? "-" : f === "capital" ? `${formatNumber(Number(v))} บาท` : v);
+        lines.push(`\nบริษัทที่ติดตามมีการเปลี่ยนแปลง (${changes.length} รายการ)`);
+        html.push(`<h3>บริษัทที่ติดตามมีการเปลี่ยนแปลง (${changes.length} รายการ)</h3><ul>`);
+        for (const c of changes) {
+          const t = `${LABEL[c.field] ?? c.field}: ${val(c.field, c.old_value)} → ${val(c.field, c.new_value)}`;
+          lines.push(`• ${c.name_th ?? c.juristic_id} — ${t}\n  ${SITE_URL}/company/${c.juristic_id}`);
+          html.push(`<li><a href="${SITE_URL}/company/${c.juristic_id}">${c.name_th ?? c.juristic_id}</a> — ${t}</li>`);
         }
         html.push("</ul>");
       }
