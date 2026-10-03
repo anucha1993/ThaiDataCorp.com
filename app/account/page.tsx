@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { addSearch, changePassword, logout, removeSearch, unlinkFacebook, unwatchTarget } from "@/app/actions";
-import { isFacebookConfigured } from "@/lib/facebook";
+import { addSearch, changePassword, logout, removeSearch, unlinkGoogle, unwatchTarget } from "@/app/actions";
+import { isGoogleConfigured } from "@/lib/google";
 import { listIdentities } from "@/lib/identity";
 import Panel, { buttonCls, inputCls, Notice, primaryButtonCls } from "@/components/Panel";
 import { listSavedSearches, listUserOrders, listWatches } from "@/lib/account-repo";
@@ -18,18 +18,18 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 const MESSAGES: Record<string, { tone: "ok" | "error"; text: string }> = {
   "ok:trial": { tone: "ok", text: "เริ่มทดลองใช้ฟรีแล้ว ใช้ได้ทุกฟีเจอร์ของแพ็กเกจจนถึงวันหมดอายุ — ชำระเงินก่อนหมดช่วงทดลองเพื่อใช้งานต่อเนื่อง" },
-  "ok:fb-linked": { tone: "ok", text: "เชื่อมบัญชี Facebook แล้ว — ครั้งต่อไปกดเข้าสู่ระบบด้วย Facebook ได้" },
-  "ok:fb-unlinked": { tone: "ok", text: "ยกเลิกการเชื่อม Facebook แล้ว — ยังเข้าสู่ระบบด้วยอีเมลและรหัสผ่านได้ตามปกติ" },
-  "error:fb-unlink-nopw": { tone: "error", text: "กรุณาตั้งรหัสผ่านก่อนยกเลิกการเชื่อม Facebook ไม่เช่นนั้นจะเข้าสู่ระบบไม่ได้" },
+  "ok:g-linked": { tone: "ok", text: "เชื่อมบัญชี Google แล้ว — ครั้งต่อไปกดเข้าสู่ระบบด้วย Google ได้" },
+  "ok:g-unlinked": { tone: "ok", text: "ยกเลิกการเชื่อม Google แล้ว — ยังเข้าสู่ระบบด้วยอีเมลและรหัสผ่านได้ตามปกติ" },
+  "error:g-unlink-nopw": { tone: "error", text: "กรุณาตั้งรหัสผ่านก่อนยกเลิกการเชื่อม Google ไม่เช่นนั้นจะเข้าสู่ระบบไม่ได้" },
   "ok:password": { tone: "ok", text: "บันทึกรหัสผ่านแล้ว" },
   "error:pw-short": { tone: "error", text: `รหัสผ่านต้องมีอย่างน้อย ${PASSWORD_MIN} ตัวอักษร` },
   "error:pw-long": { tone: "error", text: "รหัสผ่านยาวเกินไป" },
   "error:pw-mismatch": { tone: "error", text: "ยืนยันรหัสผ่านไม่ตรงกัน" },
   "error:pw-current": { tone: "error", text: "รหัสผ่านปัจจุบันไม่ถูกต้อง" },
-  "error:fb-conflict": { tone: "error", text: "บัญชี Facebook นี้ถูกเชื่อมกับสมาชิกอีกบัญชีหนึ่งอยู่แล้ว" },
-  "error:fb-cancel": { tone: "error", text: "ยกเลิกการเชื่อม Facebook" },
-  "error:fb-state": { tone: "error", text: "การเชื่อม Facebook หมดเวลา กรุณาลองใหม่" },
-  "error:fb-failed": { tone: "error", text: "เชื่อมต่อ Facebook ไม่สำเร็จ กรุณาลองใหม่" },
+  "error:g-conflict": { tone: "error", text: "บัญชี Google นี้ถูกเชื่อมกับสมาชิกอีกบัญชีหนึ่งอยู่แล้ว" },
+  "error:g-cancel": { tone: "error", text: "ยกเลิกการเชื่อม Google" },
+  "error:g-state": { tone: "error", text: "การเชื่อม Google หมดเวลา กรุณาลองใหม่" },
+  "error:g-failed": { tone: "error", text: "เชื่อมต่อ Google ไม่สำเร็จ กรุณาลองใหม่" },
   "ok:watch": { tone: "ok", text: "เพิ่มรายการติดตามแล้ว ระบบจะแจ้งเตือนทางอีเมลเมื่อมีสัญญาภาครัฐใหม่" },
   "ok:search": { tone: "ok", text: "เพิ่มเงื่อนไขแจ้งเตือนบริษัทเปิดใหม่แล้ว" },
   "error:watch": { tone: "error", text: "ไม่สามารถเพิ่มรายการติดตามได้" },
@@ -57,7 +57,7 @@ export default async function AccountPage({ searchParams }: Props) {
     listProcurementProvinces(),
     listIdentities(user.id),
   ]);
-  const fbIdentity = identities.find((i) => i.provider === "facebook");
+  const googleIdentity = identities.find((i) => i.provider === "google");
   const plan = user.plan;
   const billing = await isBillingEnabled();
   if (!billing && msgKey === "error:watch-limit") {
@@ -109,21 +109,21 @@ export default async function AccountPage({ searchParams }: Props) {
         </li>
         <li className="flex flex-wrap items-center gap-2">
           <span>
-            Facebook:{" "}
-            {fbIdentity ? <b>เชื่อมแล้ว{fbIdentity.name ? ` (${fbIdentity.name})` : ""}</b> : <span className="text-wiki-muted">ยังไม่ได้เชื่อม</span>}
+            Google:{" "}
+            {googleIdentity ? <b>เชื่อมแล้ว{googleIdentity.email ? ` (${googleIdentity.email})` : ""}</b> : <span className="text-wiki-muted">ยังไม่ได้เชื่อม</span>}
           </span>
-          {fbIdentity ? (
-            <form action={unlinkFacebook}>
+          {googleIdentity ? (
+            <form action={unlinkGoogle}>
               <button type="submit" className="text-wiki-link hover:underline">
                 ยกเลิกการเชื่อม
               </button>
             </form>
           ) : (
-            isFacebookConfigured() && <a href="/auth/facebook?link=1">เชื่อมบัญชี Facebook</a>
+            isGoogleConfigured() && <a href="/auth/google?link=1">เชื่อมบัญชี Google</a>
           )}
         </li>
       </ul>
-      <details className="mb-2 max-w-md text-sm" open={!user.hasPassword && !fbIdentity}>
+      <details className="mb-2 max-w-md text-sm" open={!user.hasPassword && !googleIdentity}>
         <summary className="cursor-pointer text-wiki-link">{user.hasPassword ? "เปลี่ยนรหัสผ่าน" : "ตั้งรหัสผ่าน (เข้าสู่ระบบด้วยอีเมลได้)"}</summary>
         <form action={changePassword} className="mt-2 flex flex-col gap-2">
           <input type="email" name="username" value={user.email} autoComplete="username" readOnly hidden />

@@ -1,9 +1,9 @@
 /**
- * บัญชีจากผู้ให้บริการภายนอก (Facebook) ↔ บัญชีสมาชิก (app_user)
+ * บัญชีจากผู้ให้บริการภายนอก (Google) ↔ บัญชีสมาชิก (app_user)
  *
  * กติกาการเชื่อมบัญชี:
  *   1. เคยเชื่อม provider+uid นี้แล้ว → เข้าบัญชีเดิม
- *   2. ผู้ให้บริการส่งอีเมลมา (Facebook ส่งเฉพาะอีเมลที่ยืนยันแล้ว)
+ *   2. ผู้ให้บริการส่งอีเมลมา (lib/google.ts ส่งเฉพาะอีเมลที่ Google ยืนยันแล้ว)
  *      - ยังไม่มีบัญชี / บัญชีนั้นไม่มีรหัสผ่าน → เข้าบัญชีที่ใช้อีเมลนั้น (สร้างใหม่ถ้ายังไม่มี) แล้วเชื่อม
  *      - บัญชีนั้นมีรหัสผ่าน → ต้องกรอกรหัสผ่านก่อนเชื่อม (oauth_pending) — อีเมลของบัญชีรหัสผ่านไม่ได้ยืนยัน
  *        ถ้าเชื่อมอัตโนมัติ คนที่สมัครดักอีเมลของคนอื่นไว้ก่อนจะได้บัญชีของเจ้าของจริงไป
@@ -15,7 +15,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { dbQuery } from "@/lib/db";
 
-export type Provider = "facebook";
+export type Provider = "google";
 
 export interface ExternalProfile {
   provider: Provider;

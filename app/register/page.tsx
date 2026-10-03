@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { registerAction } from "@/app/actions";
-import FacebookButton from "@/components/FacebookButton";
+import GoogleButton from "@/components/GoogleButton";
 import Panel, { inputCls, Notice, primaryButtonCls } from "@/components/Panel";
 import { safeNext } from "@/lib/auth";
 import { PASSWORD_MIN } from "@/lib/password";
@@ -30,18 +30,18 @@ export default async function RegisterPage({ searchParams }: Props) {
       </>
     ),
     "no-password": "อีเมลนี้มีบัญชีอยู่แล้วแต่ยังไม่ได้ตั้งรหัสผ่าน — กรุณาติดต่อผู้ดูแลเว็บไซต์เพื่อตั้งรหัสผ่าน",
-    "facebook-only": "อีเมลนี้สมัครไว้ด้วย Facebook — กดเข้าสู่ระบบด้วย Facebook แล้วตั้งรหัสผ่านได้ที่หน้า “บัญชีของฉัน”",
+    "social-only": "อีเมลนี้สมัครไว้ด้วย Google — กดเข้าสู่ระบบด้วย Google แล้วตั้งรหัสผ่านได้ที่หน้า “บัญชีของฉัน”",
   };
   const error = errors[one(q.error) ?? ""];
 
   return (
     <Panel title="สมัครสมาชิก" crumbs={[{ label: "สมัครสมาชิก" }]}>
       {error && <Notice tone="error">{error}</Notice>}
-      {pending && <Notice>สมัครด้วยอีเมลแล้วระบบจะเชื่อมบัญชี Facebook ของคุณเข้ากับบัญชีใหม่ให้</Notice>}
+      {pending && <Notice>สมัครด้วยอีเมลแล้วระบบจะเชื่อมบัญชี Google ของคุณเข้ากับบัญชีใหม่ให้</Notice>}
 
       <p className="mb-4 leading-7">สมัครฟรี ไม่มีค่าใช้จ่าย — ใช้ได้ทั้งเครื่องมือติดตามบริษัท แจ้งเตือน และดาวน์โหลดข้อมูล</p>
 
-      {!pending && <FacebookButton next={next} label="สมัครด้วย Facebook" />}
+      {!pending && <GoogleButton next={next} label="สมัครด้วย Google" />}
 
       <form action={registerAction} className="flex max-w-md flex-col gap-3">
         <input type="hidden" name="next" value={next} />

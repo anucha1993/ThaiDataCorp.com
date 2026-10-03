@@ -199,7 +199,7 @@ export async function NewView({ ym, province, searchParams }: { ym: string; prov
         {locked ? (
           <div className="border border-wiki-border bg-wiki-bg px-4 py-5 text-center">
             <p className="mb-3">
-              {tsic ? "การกรองตามประเภทธุรกิจ" : "การดูรายชื่อหน้าถัดไป"}สำหรับสมาชิก — สมัครฟรี ด้วยอีเมลหรือ Facebook
+              {tsic ? "การกรองตามประเภทธุรกิจ" : "การดูรายชื่อหน้าถัดไป"}สำหรับสมาชิก — สมัครฟรี ด้วยอีเมลหรือ Google
             </p>
             <Link href={`/register?next=${encodeURIComponent(newUrl(ym, province, { tsic, page }))}`} className={primaryButtonCls}>
               สมัครสมาชิกฟรี

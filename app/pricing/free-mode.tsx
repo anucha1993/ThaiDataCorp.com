@@ -27,7 +27,7 @@ export default function FreeModePricing({ plan }: { plan: Plan }) {
         สมัครสมาชิกฟรี
       </Link>
       <p className="mt-4 text-xs text-wiki-muted">
-        สมัครด้วยอีเมล + รหัสผ่าน หรือ Facebook · มีบัญชีแล้ว? <Link href="/login?next=/account">เข้าสู่ระบบ</Link> · ดู <Link href="/terms">เงื่อนไขการใช้งาน</Link>
+        สมัครด้วยอีเมล + รหัสผ่าน หรือบัญชี Google · มีบัญชีแล้ว? <Link href="/login?next=/account">เข้าสู่ระบบ</Link> · ดู <Link href="/terms">เงื่อนไขการใช้งาน</Link>
       </p>
     </Panel>
   );

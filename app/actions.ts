@@ -54,13 +54,13 @@ function backQuery(error: string, email: string, next: string, pending: string):
   return q.toString();
 }
 
-/** เข้าสู่ระบบสำเร็จ → ตั้ง cookie + เชื่อม Facebook ที่รออยู่ (ถ้ามี) แล้วไปหน้าปลายทาง */
+/** เข้าสู่ระบบสำเร็จ → ตั้ง cookie + เชื่อม Google ที่รออยู่ (ถ้ามี) แล้วไปหน้าปลายทาง */
 async function finishLogin(userId: number, pending: string, next: string): Promise<never> {
   const hash = await pendingHash(pending || null);
   const linked = hash ? await completePending(hash, userId) : undefined;
   await setSessionCookie(await createSessionForUser(userId));
-  if (linked === "conflict") redirect("/account?error=fb-conflict#login-methods");
-  if (linked === "ok") redirect("/account?ok=fb-linked#login-methods");
+  if (linked === "conflict") redirect("/account?error=g-conflict#login-methods");
+  if (linked === "ok") redirect("/account?ok=g-linked#login-methods");
   redirect(next);
 }
 
@@ -104,12 +104,12 @@ export async function changePassword(formData: FormData) {
   back(res === "ok" ? "ok=password" : "error=pw-current");
 }
 
-export async function unlinkFacebook() {
+export async function unlinkGoogle() {
   const user = await requireUser("/account");
-  // ไม่มีรหัสผ่าน + ยกเลิก Facebook = เข้าบัญชีไม่ได้อีก
-  if (!user.hasPassword) redirect("/account?error=fb-unlink-nopw#login-methods");
-  await unlinkIdentity(user.id, "facebook");
-  redirect("/account?ok=fb-unlinked#login-methods");
+  // ไม่มีรหัสผ่าน + ยกเลิก Google = เข้าบัญชีไม่ได้อีก
+  if (!user.hasPassword) redirect("/account?error=g-unlink-nopw#login-methods");
+  await unlinkIdentity(user.id, "google");
+  redirect("/account?ok=g-unlinked#login-methods");
 }
 
 export async function logout() {

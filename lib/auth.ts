@@ -1,5 +1,5 @@
 /**
- * สมัคร / เข้าสู่ระบบด้วยอีเมล + รหัสผ่าน (และ Facebook — ดู lib/identity.ts)
+ * สมัคร / เข้าสู่ระบบด้วยอีเมล + รหัสผ่าน (และ Google — ดู lib/identity.ts)
  *
  * - รหัสผ่านแฮชด้วย scrypt (lib/password.ts) · session เก็บเป็น SHA-256 ใน DB (ถ้า DB รั่ว ก็เอาไปใช้ไม่ได้)
  * - ใส่รหัสผ่านผิด 5 ครั้งใน 15 นาที → ล็อกบัญชีชั่วคราว 15 นาที
@@ -37,7 +37,7 @@ export interface CurrentUser {
   /** เคยใช้สิทธิ์ทดลองแล้ว */
   trialUsed: boolean;
   isAdmin: boolean;
-  /** ตั้งรหัสผ่านแล้ว (บัญชีที่สมัครด้วย Facebook อาจยังไม่มี) */
+  /** ตั้งรหัสผ่านแล้ว (บัญชีที่สมัครด้วย Google อาจยังไม่มี) */
   hasPassword: boolean;
 }
 
@@ -74,20 +74,20 @@ export async function createSessionForUser(userId: number): Promise<string> {
 /**
  * สมัครสมาชิกด้วยอีเมล + รหัสผ่าน
  * - "exists"        อีเมลนี้มีรหัสผ่านอยู่แล้ว → ให้ไปเข้าสู่ระบบ
- * - "facebook-only" อีเมลนี้สมัครด้วย Facebook → ต้องเข้าด้วย Facebook แล้วตั้งรหัสผ่านในหน้าบัญชี
+ * - "social-only"   อีเมลนี้สมัครด้วย Google → ต้องเข้าด้วย Google แล้วตั้งรหัสผ่านในหน้าบัญชี
  * - "no-password"   บัญชีเก่าจากระบบลิงก์อีเมล → ผู้ดูแลตั้งรหัสให้ (/admin/members หรือ npm run user:password)
  * ห้ามให้ "สมัครทับ" บัญชีที่มีอยู่แล้ว ไม่เช่นนั้นใครก็ตั้งรหัสผ่านให้บัญชีของคนอื่น (รวมถึงผู้ดูแล) แล้วเข้าแทนได้
  */
 export async function registerWithPassword(
   email: string,
   password: string,
-): Promise<{ userId: number } | { error: "exists" | "facebook-only" | "no-password" }> {
+): Promise<{ userId: number } | { error: "exists" | "social-only" | "no-password" }> {
   const [u] = await dbQuery<RowDataPacket[]>(
     `SELECT id, password_hash, (SELECT COUNT(*) FROM user_identity i WHERE i.user_id = app_user.id) identities
      FROM app_user WHERE email = ?`,
     [email],
   );
-  if (u) return { error: u.password_hash ? "exists" : Number(u.identities) > 0 ? "facebook-only" : "no-password" };
+  if (u) return { error: u.password_hash ? "exists" : Number(u.identities) > 0 ? "social-only" : "no-password" };
   try {
     const res = await dbQuery<import("mysql2").ResultSetHeader>(
       `INSERT INTO app_user (email, password_hash, password_set_at) VALUES (?, ?, NOW())`,
@@ -104,7 +104,7 @@ export async function registerWithPassword(
 export async function loginWithPassword(
   email: string,
   password: string,
-): Promise<{ userId: number } | { error: "invalid" | "locked" | "no-password" | "facebook-only" }> {
+): Promise<{ userId: number } | { error: "invalid" | "locked" | "no-password" | "social-only" }> {
   const [u] = await dbQuery<RowDataPacket[]>(
     `SELECT id, password_hash, failed_logins,
        (last_failed_login_at > NOW() - INTERVAL ? MINUTE) recent_fail,
@@ -113,7 +113,7 @@ export async function loginWithPassword(
     [LOCK_MINUTES, email],
   );
   if (u && Number(u.recent_fail) === 1 && Number(u.failed_logins) >= MAX_FAILED_LOGINS) return { error: "locked" };
-  if (u && !u.password_hash) return { error: Number(u.identities) > 0 ? "facebook-only" : "no-password" };
+  if (u && !u.password_hash) return { error: Number(u.identities) > 0 ? "social-only" : "no-password" };
   if (!(await verifyPassword(password, u?.password_hash))) {
     if (u) {
       await dbQuery(

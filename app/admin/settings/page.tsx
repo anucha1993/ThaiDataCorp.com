@@ -20,7 +20,7 @@ export default async function SettingsPage({ searchParams }: Props) {
     { k: "Open-D (OPEND_API_KEY)", ok: Boolean(process.env.OPEND_API_KEY) },
     { k: "GDX (GDX_CONSUMER_KEY)", ok: Boolean(process.env.GDX_CONSUMER_KEY) },
     { k: "ผู้ดูแลหลัก (ADMIN_EMAILS)", ok: Boolean(process.env.ADMIN_EMAILS) },
-    { k: "เข้าสู่ระบบด้วย Facebook (FACEBOOK_APP_ID/SECRET)", ok: Boolean(process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) },
+    { k: "เข้าสู่ระบบด้วย Google (GOOGLE_CLIENT_ID/SECRET)", ok: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) },
   ];
 
   return (
