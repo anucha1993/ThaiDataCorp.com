@@ -7,6 +7,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { GuestOnly } from "@/components/MemberGate";
 import { primaryButtonCls } from "@/components/Panel";
+import SearchableSelect, { type SelectOption } from "@/components/SearchableSelect";
 import {
   AGENCY_SORTS,
   CONTRACT_METHODS,
@@ -19,6 +20,20 @@ import {
 } from "@/lib/procurement-search";
 
 export const fieldCls = "w-full min-w-0 border border-wiki-border bg-white px-2 py-1";
+
+const toOptions = (items: readonly string[]): SelectOption[] => items.map((v) => ({ value: v, label: v }));
+
+/** หมวด TSIC 2 หลัก จัดกลุ่มตามหมวดใหญ่ (สำหรับ SearchableSelect) */
+export function tsicDivisionOptions(
+  sections: Array<{ code: string; name: string; divisions: Array<{ code: string; name: string }> }>,
+): SelectOption[] {
+  return sections.flatMap((s) => s.divisions.map((d) => ({ value: d.code, label: `${d.code} ${d.name}`, group: `${s.code} — ${s.name}` })));
+}
+
+/** รายการจังหวัดแบบพิมพ์ค้นหาได้ */
+export function ProvinceSelect({ provinces, value, all }: { provinces: readonly string[]; value?: string; all: string }) {
+  return <SearchableSelect name="province" options={toOptions(provinces)} defaultValue={value ?? ""} emptyLabel={all} className={fieldCls} />;
+}
 
 function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
   return (
@@ -49,7 +64,7 @@ export function FilterBox({
   exportAction,
   hidden,
   children,
-  open = true,
+  open = false,
 }: {
   title: string;
   action: string;
@@ -118,9 +133,7 @@ export function ContractFields({ f, provinces, fixedAgency }: { f?: ContractFilt
         <input name="winner" defaultValue={f?.winner ?? ""} className={fieldCls} />
       </Field>
       <Field label="จังหวัดที่ตั้งโครงการ">
-        <select name="province" defaultValue={f?.province ?? ""} className={fieldCls}>
-          <Options items={provinces} all="ทุกจังหวัด" />
-        </select>
+        <ProvinceSelect provinces={provinces} value={f?.province ?? ""} all="ทุกจังหวัด" />
       </Field>
       <Field label="วิธีจัดซื้อจัดจ้าง">
         <select name="method" defaultValue={f?.method ?? ""} className={fieldCls}>
@@ -164,9 +177,7 @@ export function WinnerFields({ f, provinces }: { f?: WinnerFilters; provinces: s
         <input name="q" defaultValue={f?.q ?? ""} className={fieldCls} />
       </Field>
       <Field label="จังหวัดที่ตั้งโครงการ">
-        <select name="province" defaultValue={f?.province ?? ""} className={fieldCls}>
-          <Options items={provinces} all="ทั่วประเทศ" />
-        </select>
+        <ProvinceSelect provinces={provinces} value={f?.province ?? ""} all="ทั่วประเทศ" />
       </Field>
       <Field label="จัดเรียง">
         <select name="sort" defaultValue={f?.sort ?? "value"} className={fieldCls}>
@@ -194,9 +205,7 @@ export function AgencyFields({ f, provinces }: { f?: AgencyFilters; provinces: s
         <input name="q" defaultValue={f?.q ?? ""} placeholder="เช่น เทศบาล, โรงพยาบาล, กรม" className={fieldCls} />
       </Field>
       <Field label="จังหวัดหลักของโครงการ">
-        <select name="province" defaultValue={f?.province ?? ""} className={fieldCls}>
-          <Options items={provinces} all="ทุกจังหวัด" />
-        </select>
+        <ProvinceSelect provinces={provinces} value={f?.province ?? ""} all="ทุกจังหวัด" />
       </Field>
       <Field label="จัดเรียง">
         <select name="sort" defaultValue={f?.sort ?? "value"} className={fieldCls}>
@@ -222,9 +231,7 @@ export function CompanyFields({ provinces, province }: { provinces: string[]; pr
   return (
     <>
       <Field label="จังหวัด">
-        <select name="province" defaultValue={province ?? ""} className={fieldCls}>
-          <Options items={provinces} all="ทุกจังหวัด" />
-        </select>
+        <ProvinceSelect provinces={provinces} value={province ?? ""} all="ทุกจังหวัด" />
       </Field>
       <Field label="สถานะ">
         <select name="status" defaultValue="" className={fieldCls}>

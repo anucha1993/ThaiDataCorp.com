@@ -42,14 +42,14 @@ export default async function ContractSearchPage({ searchParams }: Props) {
           </p>
         )}
 
-        <FilterBox title="ตัวกรองสัญญา" action="/procurement/contracts" exportAction="/export/contracts" hidden={{ agency: f.agency }}>
+        <FilterBox title="ตัวกรองสัญญา" action="/procurement/contracts" exportAction="/export/contracts" hidden={{ agency: f.agency }} open={hasContractFilter(f)}>
           <ContractFields f={f} provinces={provinces} fixedAgency={Boolean(f.agency)} />
         </FilterBox>
 
         {!user ? (
           <MemberLock next={self} what="การค้นหาและดาวน์โหลดสัญญาภาครัฐ" />
         ) : !result ? (
-          <p className="text-wiki-muted">เลือกตัวกรองแล้วกด &ldquo;ค้นหา / กรอง&rdquo;</p>
+          <p className="text-wiki-muted">กด &ldquo;🔎 ตัวกรองสัญญา&rdquo; ด้านบน เลือกตัวกรองอย่างน้อย 1 อย่าง แล้วกด &ldquo;ค้นหา / กรอง&rdquo;</p>
         ) : result.timedOut ? (
           <p className="text-red-800">
             ตัวกรองกว้างเกินไป{f.sort === "value" ? "สำหรับการเรียงตามมูลค่า" : ""} — เพิ่มตัวกรอง เช่น หน่วยงาน ผู้รับสัญญา หรือช่วงวันที่ลงนาม

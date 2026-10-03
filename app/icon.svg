@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <circle cx="24" cy="24" r="21" fill="#fff" stroke="#202122" stroke-width="2"/>
-  <path d="M3 24h42M24 3c-7 6-7 36 0 42M24 3c7 6 7 36 0 42" fill="none" stroke="#72777d" stroke-width="1.5"/>
-  <path d="M7 14h34M7 34h34" fill="none" stroke="#a2a9b1" stroke-width="1.2"/>
-  <text x="24" y="29" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="bold" fill="#202122">TD</text>
-</svg>

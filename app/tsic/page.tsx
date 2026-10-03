@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { getProvider } from "@/lib/api";
 import { formatNumber, SITE_NAME, tsicUrl } from "@/lib/format";
 import { getTsicTree } from "@/lib/tsic-repo";
-import { CompanyFields, FilterBox, fieldCls } from "@/components/FilterForms";
+import { CompanyFields, FilterBox, fieldCls, tsicDivisionOptions } from "@/components/FilterForms";
+import SearchableSelect from "@/components/SearchableSelect";
 import { listProvinces, listTsicDivisions } from "@/lib/search-repo";
 
 export const revalidate = 86400;
@@ -37,18 +38,7 @@ export default async function TsicIndexPage() {
         <FilterBox title="ค้นหา / ดาวน์โหลดรายชื่อบริษัทตามประเภทธุรกิจ" action="/search" exportAction="/export/search">
           <label className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
             ประเภทธุรกิจ (หมวด TSIC)
-            <select name="tsic" defaultValue="" className={fieldCls}>
-              <option value="">ทุกประเภท</option>
-              {divisions.map((s) => (
-                <optgroup key={s.code} label={`${s.code} — ${s.name}`}>
-                  {s.divisions.map((d) => (
-                    <option key={d.code} value={d.code}>
-                      {d.code} {d.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            <SearchableSelect name="tsic" options={tsicDivisionOptions(divisions)} emptyLabel="ทุกประเภท" className={fieldCls} />
           </label>
           <CompanyFields provinces={provinces} />
         </FilterBox>

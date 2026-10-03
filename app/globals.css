@@ -60,3 +60,32 @@
     @apply pb-1 text-left font-bold;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Hero หน้าแรก — Classic เรียบ ขาว-ดำ (ไม่มีเงา/ไล่สี)
+ * ------------------------------------------------------------------------- */
+.hero-classic {
+  background: #ffffff;
+  border: 1px solid #c8ccd1;
+}
+.classic-card {
+  background: #ffffff;
+  border: 1px solid #c8ccd1;
+}
+.classic-card:hover {
+  border-color: #202122;
+}
+.classic-btn {
+  background: #202122;
+  color: #ffffff;
+}
+.classic-btn:hover {
+  background: #3a3d40;
+}
+.classic-chip {
+  background: #ffffff;
+  border: 1px solid #c8ccd1;
+}
+.classic-chip:hover {
+  border-color: #202122;
+}

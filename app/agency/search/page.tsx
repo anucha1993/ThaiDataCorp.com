@@ -37,7 +37,7 @@ export default async function AgencySearchPage({ searchParams }: Props) {
           หน่วยงานภาครัฐที่ทำสัญญาจัดซื้อจัดจ้างกับนิติบุคคล ปีงบประมาณ 2568 ทั้งหมดราว 29,000 หน่วยงาน
         </p>
 
-        <FilterBox title="ตัวกรองหน่วยงาน" action="/agency/search" exportAction="/export/agencies">
+        <FilterBox title="ตัวกรองหน่วยงาน" action="/agency/search" exportAction="/export/agencies" open={Boolean(f.q || f.province || f.minContracts != null || f.minValue != null)}>
           <AgencyFields f={f} provinces={provinces} />
         </FilterBox>
 

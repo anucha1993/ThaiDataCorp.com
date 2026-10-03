@@ -17,6 +17,8 @@ import {
   type SearchFilters,
 } from "@/lib/search-repo";
 import { primaryButtonCls } from "@/components/Panel";
+import { ProvinceSelect, tsicDivisionOptions } from "@/components/FilterForms";
+import SearchableSelect from "@/components/SearchableSelect";
 import StatusBadge from "@/components/StatusBadge";
 import type { JuristicProfile } from "@/types/company";
 
@@ -84,7 +86,7 @@ export default async function SearchPage({ searchParams }: SearchProps) {
           </div>
 
           {db && (
-            <details open={advancedOn && (wantsAdvanced || !query)} className="mt-3 border border-wiki-border bg-wiki-bg">
+            <details open={advancedOn && wantsAdvanced} className="mt-3 border border-wiki-border bg-wiki-bg">
               <summary className="cursor-pointer px-3 py-2 text-sm font-bold">
                 🔎 ค้นหาขั้นสูง{" "}
                 <span className="font-normal text-wiki-muted">— ประเภทธุรกิจ จังหวัด สถานะ วันจดทะเบียน ทุน และงานภาครัฐ</span>
@@ -195,18 +197,13 @@ function AdvancedFields({
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="flex flex-col gap-1 sm:col-span-2">
           ประเภทธุรกิจ (หมวด TSIC)
-          <select name="tsic" defaultValue={tsicIsDivision ? f.tsic : ""} className={fieldCls}>
-            <option value="">ทุกประเภท</option>
-            {divisions.map((s) => (
-              <optgroup key={s.code} label={`${s.code} — ${s.name}`}>
-                {s.divisions.map((d) => (
-                  <option key={d.code} value={d.code}>
-                    {d.code} {d.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <SearchableSelect
+            name="tsic"
+            options={tsicDivisionOptions(divisions)}
+            defaultValue={tsicIsDivision ? f.tsic : ""}
+            emptyLabel="ทุกประเภท"
+            className={fieldCls}
+          />
         </label>
         <label className="flex flex-col gap-1">
           หรือรหัส TSIC เจาะจง (2–5 หลัก)
@@ -221,14 +218,7 @@ function AdvancedFields({
         </label>
         <label className="flex flex-col gap-1">
           จังหวัด
-          <select name="province" defaultValue={f.province ?? ""} className={fieldCls}>
-            <option value="">ทุกจังหวัด</option>
-            {provinces.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
+          <ProvinceSelect provinces={provinces} value={f.province} all="ทุกจังหวัด" />
         </label>
         <label className="flex flex-col gap-1">
           ประเภทนิติบุคคล

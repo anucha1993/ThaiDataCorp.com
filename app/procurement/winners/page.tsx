@@ -38,7 +38,7 @@ export default async function WinnerSearchPage({ searchParams }: Props) {
           <Link href="/procurement/contracts">ค้นหารายสัญญา</Link>
         </p>
 
-        <FilterBox title="ตัวกรองผู้รับสัญญา" action="/procurement/winners" exportAction="/export/winners">
+        <FilterBox title="ตัวกรองผู้รับสัญญา" action="/procurement/winners" exportAction="/export/winners" open={Boolean(f.q || f.province || f.minContracts != null || f.minValue != null)}>
           <WinnerFields f={f} provinces={provinces} />
         </FilterBox>
 

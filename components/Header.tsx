@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/format";
 import { isBillingEnabled } from "@/lib/billing";
@@ -48,16 +49,17 @@ export default async function Header() {
   );
 }
 
-/** โลโก้แบบ "ลูกโลกตัวต่อ" ของ Wikipedia ในรูป SVG เรียบง่าย (inline เพื่อไม่ต้องโหลดไฟล์เพิ่ม) */
+/** โลโก้ ThaiDataCorp (public/brand/logo-thaidatacorp.png — ต้นฉบับ 494×505 พื้นโปร่งใส) */
 function Logo() {
   return (
-    <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true" className="shrink-0">
-      <circle cx="24" cy="24" r="21" fill="#fff" stroke="#202122" strokeWidth="2" />
-      <path d="M3 24h42M24 3c-7 6-7 36 0 42M24 3c7 6 7 36 0 42" fill="none" stroke="#72777d" strokeWidth="1.5" />
-      <path d="M7 14h34M7 34h34" fill="none" stroke="#a2a9b1" strokeWidth="1.2" />
-      <text x="24" y="29" textAnchor="middle" fontFamily="Georgia, serif" fontSize="14" fontWeight="bold" fill="#202122">
-        TD
-      </text>
-    </svg>
+    <Image
+      src="/brand/logo-thaidatacorp.png"
+      alt=""
+      width={494}
+      height={505}
+      loading="eager"
+      sizes="48px"
+      className="h-12 w-auto shrink-0"
+    />
   );
 }
