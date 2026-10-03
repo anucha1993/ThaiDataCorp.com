@@ -6,7 +6,7 @@ import type { RowDataPacket } from "mysql2";
 import { dbQuery } from "@/lib/db";
 import { mapStatus } from "@/lib/dbd-normalize";
 import { toJuristicProfile } from "@/lib/opend-normalize";
-import type { DirectorsApiResponse, FinancialsApiResponse, JuristicProfile } from "@/types/company";
+import type { DataAsOf, DirectorsApiResponse, FinancialsApiResponse, JuristicProfile } from "@/types/company";
 
 /** Google จำกัด 50,000 URL ต่อ sitemap 1 ไฟล์ */
 export const SITEMAP_CHUNK_SIZE = 50_000;
@@ -92,9 +92,54 @@ export async function listJuristicWhere(
 
 export { upsertDbdProfile } from "@/lib/juristic-write";
 
+const THAI_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+
+interface FreshnessRow extends JuristicRow {
+  dbd_fetched_at: Date | null;
+  res_kind: "new" | "dissolved" | null;
+  res_year: number | null;
+  res_month: number | null;
+  res_synced: Date | null;
+}
+
 export async function findJuristicById(id: string): Promise<JuristicProfile | null> {
-  const rows = await dbQuery<JuristicRow[]>(`${SELECT_PROFILE} WHERE j.id = ?`, [id]);
-  return rows[0] ? rowToProfile(rows[0]) : null;
+  // ชุดข้อมูลรายเดือนที่ให้ข้อมูลล่าสุด: ชุดเลิก (ถ้ามี) ใหม่กว่าชุดตั้งใหม่
+  const rows = await dbQuery<FreshnessRow[]>(
+    `SELECT p.*, IF(p.dissolved_resource_id IS NOT NULL, 'dissolved', IF(p.new_resource_id IS NOT NULL, 'new', NULL)) AS res_kind,
+       s.year_be AS res_year, s.month AS res_month, s.synced_at AS res_synced
+     FROM (${SELECT_PROFILE.replace("SELECT j.id,", "SELECT j.dbd_fetched_at, j.new_resource_id, j.dissolved_resource_id, j.id,")} WHERE j.id = ?) p
+     LEFT JOIN sync_resource s ON s.resource_id = COALESCE(p.dissolved_resource_id, p.new_resource_id)`,
+    [id],
+  );
+  const r = rows[0];
+  if (!r) return null;
+  return { ...rowToProfile(r), ...(dataAsOf(r) && { dataAsOf: dataAsOf(r) }) };
+}
+
+function dataAsOf(r: FreshnessRow): DataAsOf | undefined {
+  if (r.dbd_fetched_at) return { kind: "dbd", at: new Date(r.dbd_fetched_at).toISOString() };
+  if (r.res_kind && r.res_synced) {
+    return {
+      kind: r.res_kind === "dissolved" ? "opend-dissolved" : "opend-new",
+      at: new Date(r.res_synced).toISOString(),
+      ...(r.res_year && r.res_month && { period: `${THAI_MONTHS[r.res_month - 1]} ${r.res_year}` }),
+    };
+  }
+  return undefined;
+}
+
+/** true เมื่อยังไม่เคยตรวจกับ DBD Open API หรือตรวจไว้นานกว่า maxAgeDays วัน */
+export async function isDbdStale(id: string, maxAgeDays: number): Promise<boolean> {
+  const rows = await dbQuery<RowDataPacket[]>(
+    `SELECT dbd_fetched_at IS NULL OR dbd_fetched_at < NOW() - INTERVAL ? DAY AS stale FROM juristic WHERE id = ?`,
+    [maxAgeDays, id],
+  );
+  return Boolean(rows[0]?.stale);
+}
+
+/** บันทึกว่าตรวจกับ DBD แล้ว (ใช้เมื่อ DBD ไม่พบข้อมูล จะได้ไม่ถามซ้ำทุกครั้ง) */
+export async function markDbdChecked(id: string): Promise<void> {
+  await dbQuery(`UPDATE juristic SET dbd_fetched_at = NOW() WHERE id = ?`, [id]);
 }
 
 /**

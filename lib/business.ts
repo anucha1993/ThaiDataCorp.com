@@ -452,3 +452,42 @@ export async function listVerifiedCompanies(limit = 200) {
     since: String(r.created_at), hidden: Number(r.hidden) === 1, jobs: Number(r.jobs), news: Number(r.news),
   }));
 }
+
+/* --------------------------------------------- กรรมการ (จากเจ้าของกิจการ) */
+
+export const MAX_DIRECTORS = 15;
+
+/** รายชื่อกรรมการที่เจ้าของกิจการกรอก (source = 'owner') — ใช้ในหน้าจัดการ */
+export async function listOwnerDirectors(juristicId: string): Promise<Array<{ name: string; position: string | null }>> {
+  const rows = await dbQuery<RowDataPacket[]>(
+    `SELECT name, position FROM juristic_director WHERE juristic_id = ? AND source = 'owner' ORDER BY seq`,
+    [juristicId],
+  );
+  return rows.map((r) => ({ name: String(r.name), position: r.position ? String(r.position) : null }));
+}
+
+/**
+ * แทนที่รายชื่อกรรมการที่เจ้าของกิจการกรอกทั้งชุด
+ * ไม่ยุ่งกับรายชื่อจากแหล่งอื่น (เช่น manual / bdex) — ถ้ามีแหล่งทางการอยู่แล้วจะไม่ให้กรอกทับ
+ */
+export async function saveOwnerDirectors(juristicId: string, list: Array<{ name: string; position: string | null }>): Promise<"ok" | "official"> {
+  const [official] = await dbQuery<RowDataPacket[]>(
+    `SELECT 1 FROM juristic_director WHERE juristic_id = ? AND source <> 'owner' LIMIT 1`,
+    [juristicId],
+  );
+  if (official) return "official";
+  await dbQuery(`DELETE FROM juristic_director WHERE juristic_id = ? AND source = 'owner'`, [juristicId]);
+  let seq = 0;
+  for (const d of list.slice(0, MAX_DIRECTORS)) {
+    await dbQuery(`INSERT INTO juristic_director (juristic_id, seq, name, position, source) VALUES (?, ?, ?, ?, 'owner')`, [
+      juristicId, ++seq, d.name, d.position,
+    ]);
+  }
+  return "ok";
+}
+
+/** แหล่งของรายชื่อกรรมการที่แสดงบนหน้าบริษัท */
+export async function directorSource(juristicId: string): Promise<string | null> {
+  const [r] = await dbQuery<RowDataPacket[]>(`SELECT source FROM juristic_director WHERE juristic_id = ? LIMIT 1`, [juristicId]);
+  return r ? String(r.source) : null;
+}

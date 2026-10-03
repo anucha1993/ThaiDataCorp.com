@@ -1,3 +1,4 @@
+import DataAsOfNote from "@/components/DataAsOfNote";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -9,7 +10,7 @@ import SameAddressSection from "@/components/SameAddressSection";
 import ExternalLookup from "@/components/ExternalLookup";
 import CompanyContact from "@/components/CompanyContact";
 import CompanyBusiness from "@/components/CompanyBusiness";
-import { getProfile, isVerifiedCompany, listCompanyJobs, listCompanyNews } from "@/lib/business";
+import { directorSource, getProfile, isVerifiedCompany, listCompanyJobs, listCompanyNews } from "@/lib/business";
 import ViewsBox from "@/components/ViewsChart";
 import { getEntityDaily } from "@/lib/analytics";
 import { getJuristicContact } from "@/lib/support";
@@ -102,7 +103,7 @@ export default async function CompanyPage({ params }: PageProps) {
   const data = await getCompany(id);
   if (!data) notFound();
   const db = getProvider() === "db";
-  const [contact, views, bizProfile, verified, bizJobs, bizNews] = db
+  const [contact, views, bizProfile, verified, bizJobs, bizNews, dirSource] = db
     ? await Promise.all([
         getJuristicContact(id).catch(() => null),
         getEntityDaily("company", id, 30).catch(() => null),
@@ -110,8 +111,9 @@ export default async function CompanyPage({ params }: PageProps) {
         isVerifiedCompany(id).catch(() => false),
         listCompanyJobs(id, true).catch(() => []),
         listCompanyNews(id, true, 5).catch(() => []),
+        directorSource(id).catch(() => null),
       ])
-    : [null, null, null, false, [], []];
+    : [null, null, null, false, [], [], null];
   // ผู้ดูแลระงับข้อมูลจากเจ้าของกิจการ → ไม่แสดงส่วนที่บริษัทเขียนเอง
   const showBiz = verified && !bizProfile?.hidden;
 
@@ -119,15 +121,6 @@ export default async function CompanyPage({ params }: PageProps) {
   const hasPeople = directors.length > 0 || shareholders.length > 0;
   const hasFinancials = financials.length > 0;
 
-  const toc = [
-    { id: "overview", label: "ภาพรวม" },
-    { id: "directors", label: "รายชื่อกรรมการและผู้ถือหุ้น" },
-    ...(data.procurement ? [{ id: "procurement", label: "งานจัดซื้อจัดจ้างภาครัฐ" }] : []),
-    ...(data.signals?.length ? [{ id: "signals", label: "ข้อสังเกตจากข้อมูลสาธารณะ" }] : []),
-    ...(data.sameAddress?.total ? [{ id: "same-address", label: "นิติบุคคลที่อยู่เดียวกัน" }] : []),
-    { id: "financials", label: "สรุปงบการเงินย่อ" },
-    { id: "references", label: "แหล่งอ้างอิง" },
-  ];
 
   return (
     <>
@@ -171,6 +164,12 @@ export default async function CompanyPage({ params }: PageProps) {
             <span className="flex items-center gap-1">
               สถานะ: <StatusBadge status={profile.status} text={profile.statusText} />
             </span>
+            {profile.dataAsOf && (
+              <>
+                <span aria-hidden="true">|</span>
+                <DataAsOfNote asOf={profile.dataAsOf} compact />
+              </>
+            )}
             {getProvider() === "db" && (
               <div className="ml-auto">
                 <WatchButton kind="company" target={profile.id} back={`/company/${profile.id}`} label="ติดตามบริษัทนี้" />
@@ -196,13 +195,20 @@ export default async function CompanyPage({ params }: PageProps) {
                     <b>วัตถุประสงค์ตามที่จดทะเบียน:</b> {profile.objective}
                   </p>
                 )}
-                <CompanyContact id={profile.id} contact={contact} verified={verified} />
+                {/* บริษัทที่ยืนยันแล้ว: ข้อมูลติดต่ออยู่ในส่วน "เกี่ยวกับบริษัท" ต่อจากสินค้า/บริการ */}
+                {!showBiz && <CompanyContact id={profile.id} contact={contact} verified={verified} />}
                 <ExternalLookup profile={profile} />
               </section>
 
-              {showBiz && <CompanyBusiness profile={bizProfile} jobs={bizJobs} news={bizNews} />}
+              {showBiz && (
+                <CompanyBusiness
+                  profile={bizProfile}
+                  jobs={bizJobs}
+                  news={bizNews}
+                  contact={<CompanyContact id={profile.id} contact={contact} verified={verified} />}
+                />
+              )}
 
-              <TableOfContents items={toc} />
 
               {/* Section 2: Directors & Shareholders */}
               <section id="directors" aria-labelledby="directors-h">
@@ -214,7 +220,12 @@ export default async function CompanyPage({ params }: PageProps) {
                 {directors.length > 0 && (
                   <div className="mb-5 overflow-x-auto">
                     <table className="wikitable">
-                      <caption>รายชื่อกรรมการ ({directors.length} คน)</caption>
+                      <caption>
+                        รายชื่อกรรมการ ({directors.length} คน)
+                        {dirSource === "owner" && (
+                          <span className="ml-2 text-xs font-normal text-green-800">✔ ข้อมูลจากเจ้าของกิจการ (บริษัทยืนยันตัวตนแล้ว)</span>
+                        )}
+                      </caption>
                       <thead>
                         <tr>
                           <th scope="col" className="w-12">
@@ -314,6 +325,15 @@ export default async function CompanyPage({ params }: PageProps) {
                       . data.go.th สัญญาอนุญาต Creative Commons Attribution
                     </li>
                   )}
+                  {profile.dataAsOf?.kind === "dbd" && (
+                    <li>
+                      กรมพัฒนาธุรกิจการค้า.{" "}
+                      <a href="https://openapi.dbd.go.th" rel="noopener nofollow" target="_blank">
+                        DBD Open API
+                      </a>
+                      . สัญญาอนุญาต Open Data Common
+                    </li>
+                  )}
                   {data.source === "opend" && (
                     <>
                       <li>
@@ -342,17 +362,23 @@ export default async function CompanyPage({ params }: PageProps) {
                     </a>
                   </li>
                 </ol>
-                {data.source === "opend" && (
+                {data.source === "opend" && profile.dataAsOf?.kind !== "dbd" && (
                   <p className="mt-4 text-xs text-wiki-muted">
                     สถานะกิจการอ้างอิงจากชุดข้อมูลเปิดที่เริ่มตั้งแต่เดือนมกราคม 2565 การเปลี่ยนแปลงอื่นนอกเหนือจากการจดทะเบียนเลิก
                     (เช่น ร้าง หรือเสร็จการชำระบัญชี) อาจยังไม่สะท้อนในหน้านี้
                   </p>
                 )}
                 <p className="mt-4 text-xs text-wiki-muted">
-                  ปรับปรุงข้อมูลล่าสุด:{" "}
-                  <time dateTime={data.fetchedAt}>
-                    {new Date(data.fetchedAt).toLocaleString("th-TH", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Bangkok" })}
-                  </time>
+                  {profile.dataAsOf ? (
+                    <DataAsOfNote asOf={profile.dataAsOf} />
+                  ) : (
+                    <>
+                      ปรับปรุงข้อมูลล่าสุด:{" "}
+                      <time dateTime={data.fetchedAt}>
+                        {new Date(data.fetchedAt).toLocaleString("th-TH", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Bangkok" })}
+                      </time>
+                    </>
+                  )}
                 </p>
               </section>
             </div>
@@ -377,26 +403,6 @@ function IntroText({ data }: { data: CompanyData }) {
       <b>{name}</b>
       {text.slice(name.length)}
     </>
-  );
-}
-
-function TableOfContents({ items }: { items: Array<{ id: string; label: string }> }) {
-  return (
-    <nav aria-labelledby="toc-h" className="my-5 inline-block border border-wiki-border bg-wiki-bg px-4 py-2 text-sm">
-      <h2 id="toc-h" className="mb-1 text-center font-bold">
-        สารบัญ
-      </h2>
-      <ol className="list-none space-y-0.5">
-        {items.map((item, i) => (
-          <li key={item.id}>
-            <a href={`#${item.id}`}>
-              <span className="mr-2 text-wiki-text">{i + 1}</span>
-              {item.label}
-            </a>
-          </li>
-        ))}
-      </ol>
-    </nav>
   );
 }
 
@@ -542,7 +548,7 @@ function JsonLd({ data }: { data: CompanyData }) {
         name: `${displayName(p.nameTh, p.nameEn)} | ${SITE_NAME}`,
         inLanguage: "th-TH",
         about: { "@id": `${url}#organization` },
-        dateModified: data.fetchedAt,
+        dateModified: data.profile.dataAsOf?.at ?? data.fetchedAt,
         isPartOf: { "@type": "WebSite", "@id": `${SITE_URL}/#website`, name: SITE_NAME, url: SITE_URL },
       },
       {

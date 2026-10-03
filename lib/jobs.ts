@@ -46,6 +46,13 @@ export const JOBS: JobDef[] = [
     staleMinutes: 30,
   },
   {
+    key: "refresh-dbd",
+    label: "อัปเดตข้อมูลบริษัทจาก DBD (ชื่อ/ทุน/สถานะ)",
+    description: "ทยอยตรวจข้อมูลบริษัทใน DB กับ DBD Open API ให้เป็นปัจจุบัน (บริษัทที่เปลี่ยนชื่อ/เพิ่มทุน) ตรวจซ้ำทุก 30 วัน",
+    script: "refresh-dbd.ts",
+    staleMinutes: 30,
+  },
+  {
     key: "alerts",
     label: "ส่งอีเมลแจ้งเตือนสมาชิก",
     description: "สัญญาภาครัฐใหม่ของรายการที่ติดตาม + บริษัทเปิดใหม่ตามเงื่อนไข",

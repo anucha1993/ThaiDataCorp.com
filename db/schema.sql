@@ -531,3 +531,6 @@ ALTER TABLE app_user
   ADD COLUMN IF NOT EXISTS suspended_at     DATETIME     NULL,
   ADD COLUMN IF NOT EXISTS suspended_reason VARCHAR(500) NULL,
   ADD COLUMN IF NOT EXISTS suspended_by     INT          NULL;
+
+-- v23: ทยอยอัปเดตข้อมูลบริษัทจาก DBD Open API (ข้อมูล Open-D เป็นข้อมูล ณ วันจดทะเบียน) — ทุกชั่วโมง รอบละ 1,000 ราย
+INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('refresh-dbd', 1, '5 * * * *', '--limit=1000 --rate=1');

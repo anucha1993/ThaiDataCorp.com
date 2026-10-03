@@ -18,7 +18,9 @@ import {
   pendingClaimFor,
   postsThisMonth,
   quotas,
+  saveOwnerDirectors,
   saveProfile,
+  MAX_DIRECTORS,
   setJobOpen,
   updateJob,
   updateNews,
@@ -124,7 +126,13 @@ export async function saveCompanyProfile(formData: FormData) {
   }
   await saveProfile(juristicId, user.id, {
     about: str(formData, "about", 3000) || null,
-    services: str(formData, "services", 2000) || null,
+    services:
+      formData
+        .getAll("service")
+        .map((v) => String(v).replace(/\s+/g, " ").trim().slice(0, 200))
+        .filter(Boolean)
+        .slice(0, 30)
+        .join("\n") || null,
     logo,
   });
   refresh(juristicId);
@@ -258,4 +266,24 @@ export async function removeNewsPost(formData: FormData) {
   revalidatePath(`/news/${newsId}`);
   refresh(juristicId);
   redirect(`/business/${juristicId}?ok=news-deleted#news`);
+}
+
+/* ---------------------------------------------------------------- กรรมการ */
+
+export async function saveDirectors(formData: FormData) {
+  const juristicId = str(formData, "juristicId", 20);
+  await requireMember(juristicId);
+  const back = (q: string) => redirect(`/business/${juristicId}?${q}#directors`);
+  const names = formData.getAll("dName").map((v) => String(v).trim().slice(0, 255));
+  const positions = formData.getAll("dPosition").map((v) => String(v).trim().slice(0, 128));
+  const list = names
+    .map((name, i) => ({ name, position: positions[i] || null }))
+    .filter((d) => d.name.length > 0)
+    .slice(0, MAX_DIRECTORS);
+  if (list.some((d) => d.name.length < 4)) back("error=director-name");
+  if (list.length > 0 && formData.get("consent") !== "1") back("error=director-consent");
+  const r = await saveOwnerDirectors(juristicId, list);
+  if (r === "official") back("error=director-official");
+  refresh(juristicId);
+  back("ok=directors");
 }

@@ -39,7 +39,9 @@ import {
   findCompanyDetails,
   findJuristicById,
   findSameAddress,
+  isDbdStale,
   listJuristicForSitemap,
+  markDbdChecked,
   listRecentJuristic,
   searchJuristicByName,
   SITEMAP_CHUNK_SIZE,
@@ -274,14 +276,48 @@ async function fetchOpendCompany(id: string, from: "db" | "api"): Promise<Compan
  */
 async function findInDbOrDbd(id: string): Promise<JuristicProfile | null> {
   const fromDb = await findJuristicById(id);
-  if (fromDb || !isDbdOpenApiEnabled() || isNonDbdTaxId(id)) return fromDb;
+  if (!isDbdOpenApiEnabled() || isNonDbdTaxId(id)) return fromDb;
+  if (fromDb) return (await refreshFromDbdIfStale(id)) ?? fromDb;
 
   // throw ต่อเมื่อ DBD ล่ม/โดน WAF → หน้า error (ไม่ cache เป็น 404 ผิด ๆ)
   const raw = await fetchDbdJuristic(id, { revalidate: DATA_REVALIDATE_SECONDS });
   if (!raw) return null;
   const profile = normalizeProfile(raw);
   await upsertDbdProfile(profile).catch((e) => console.error(`[api] save DBD profile ${id} failed:`, e));
-  return profile;
+  return { ...profile, dataAsOf: { kind: "dbd", at: new Date().toISOString() } };
+}
+
+/**
+ * ข้อมูล Open-D เป็นข้อมูล "ณ วันจดทะเบียน" — บริษัทเปลี่ยนชื่อ/ทุน/ประเภทธุรกิจภายหลังได้
+ * จึงตรวจกับ DBD Open API อีกครั้งเมื่อข้อมูลเก่ากว่า DBD_REFRESH_DAYS วัน แล้วบันทึกทับ
+ * จำกัดความถี่ (กัน bot ไล่เปิดหลายหน้าจนโดน WAF) และถ้า DBD ผิดพลาดจะพักแล้วใช้ข้อมูลเดิมไปก่อน
+ */
+const DBD_REFRESH_DAYS = 30;
+const DBD_REFRESH_PER_MINUTE = 20;
+const DBD_ERROR_PAUSE_MS = 10 * 60_000;
+const dbdRefresh = { windowStart: 0, count: 0, pausedUntil: 0 };
+
+async function refreshFromDbdIfStale(id: string): Promise<JuristicProfile | null> {
+  const now = Date.now();
+  if (now < dbdRefresh.pausedUntil) return null;
+  try {
+    if (!(await isDbdStale(id, DBD_REFRESH_DAYS))) return null;
+    if (now - dbdRefresh.windowStart > 60_000) Object.assign(dbdRefresh, { windowStart: now, count: 0 });
+    if (++dbdRefresh.count > DBD_REFRESH_PER_MINUTE) return null;
+
+    const raw = await fetchDbdJuristic(id, { revalidate: DATA_REVALIDATE_SECONDS });
+    if (!raw) {
+      await markDbdChecked(id);
+      return null;
+    }
+    await upsertDbdProfile(normalizeProfile(raw));
+    // อ่านกลับจาก DB เพื่อให้ได้ชื่อหมวด TSIC ทางการ/วันเลิก เหมือนเส้นทางปกติ
+    return await findJuristicById(id);
+  } catch (e) {
+    dbdRefresh.pausedUntil = Date.now() + DBD_ERROR_PAUSE_MS;
+    console.error(`[api] refresh DBD ${id} failed — ใช้ข้อมูลเดิม:`, e);
+    return null;
+  }
 }
 
 function fetchMockCompany(id: string): CompanyData | null {

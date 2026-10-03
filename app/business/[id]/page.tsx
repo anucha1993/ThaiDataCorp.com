@@ -1,12 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { removeNewsPost, saveCompanyProfile, toggleJob } from "@/app/business/actions";
+import { removeNewsPost, saveCompanyProfile, saveDirectors, toggleJob } from "@/app/business/actions";
 import FileGuard from "@/components/FileGuard";
+import RowListEditor from "@/components/RowListEditor";
 import FilePicker from "@/components/FilePicker";
 import Panel, { buttonCls, inputCls, Notice, primaryButtonCls } from "@/components/Panel";
 import { requireUser } from "@/lib/auth";
-import { EMPLOYMENT_TYPES, getProfile, isCompanyMember, listCompanyJobs, listCompanyNews, postsThisMonth, quotas } from "@/lib/business";
+import {
+  directorSource,
+  EMPLOYMENT_TYPES,
+  getProfile,
+  isCompanyMember,
+  listCompanyJobs,
+  listCompanyNews,
+  listOwnerDirectors,
+  MAX_DIRECTORS,
+  postsThisMonth,
+  quotas,
+} from "@/lib/business";
 import { findJuristicById } from "@/lib/company-repo";
 import { getCompany } from "@/lib/api";
 import { formatThaiDate } from "@/lib/format";
@@ -23,6 +35,10 @@ const MSG: Record<string, { tone: "ok" | "error"; text: string }> = {
   "ok:job": { tone: "ok", text: "บันทึกประกาศงานแล้ว" },
   "ok:news": { tone: "ok", text: "บันทึกข่าวสารแล้ว" },
   "ok:news-deleted": { tone: "ok", text: "ลบข่าวสารแล้ว" },
+  "ok:directors": { tone: "ok", text: "บันทึกรายชื่อกรรมการแล้ว — แสดงบนหน้าบริษัทพร้อมป้าย “ข้อมูลจากเจ้าของกิจการ”" },
+  "error:director-name": { tone: "error", text: "ชื่อกรรมการต้องมีอย่างน้อย 4 ตัวอักษร (ชื่อ–นามสกุล)" },
+  "error:director-consent": { tone: "error", text: "กรุณายืนยันว่ารายชื่อตรงกับหนังสือรับรอง และบุคคลที่ระบุรับทราบการเผยแพร่" },
+  "error:director-official": { tone: "error", text: "บริษัทนี้มีรายชื่อกรรมการจากแหล่งข้อมูลทางการแล้ว — แจ้งแก้ไขผ่านหน้าติดต่อเรา" },
   "error:job-quota": { tone: "error", text: "ลงประกาศงานครบโควตาเดือนนี้แล้ว" },
   "error:news-quota": { tone: "error", text: "โพสต์ข่าวสารครบโควตาเดือนนี้แล้ว" },
   "error:not-found": { tone: "error", text: "ไม่พบรายการ" },
@@ -44,7 +60,7 @@ export default async function CompanyDashboard({ params, searchParams }: Props) 
   const q = await searchParams;
   const msg = one(q.ok) ? MSG[`ok:${one(q.ok)}`] : one(q.error) ? MSG[`error:${one(q.error)}`] : undefined;
 
-  const [row, profile, contact, jobs, news, quota, jobsUsed, newsUsed] = await Promise.all([
+  const [row, profile, contact, jobs, news, quota, jobsUsed, newsUsed, directors, dirSource] = await Promise.all([
     findJuristicById(id).catch(() => null),
     getProfile(id),
     getJuristicContact(id),
@@ -53,7 +69,10 @@ export default async function CompanyDashboard({ params, searchParams }: Props) 
     quotas(),
     postsThisMonth("job_post", id),
     postsThisMonth("news_post", id),
+    listOwnerDirectors(id),
+    directorSource(id),
   ]);
+  const directorRows = [...directors, ...Array.from({ length: Math.max(3, Math.min(MAX_DIRECTORS, directors.length + 2)) - directors.length }, () => ({ name: "", position: null }))].slice(0, MAX_DIRECTORS);
   const name = row?.nameTh ?? (await getCompany(id).catch(() => null))?.profile.nameTh ?? id;
   const logo = mediaUrl(profile?.logo);
 
@@ -75,10 +94,18 @@ export default async function CompanyDashboard({ params, searchParams }: Props) 
             แนะนำธุรกิจ (สูงสุด 3,000 ตัวอักษร)
             <textarea name="about" rows={6} maxLength={3000} defaultValue={profile?.about ?? ""} className={inputCls} />
           </label>
-          <label className="flex flex-col gap-1 sm:col-span-2">
-            สินค้า / บริการ (บรรทัดละรายการ)
-            <textarea name="services" rows={4} maxLength={2000} defaultValue={profile?.services ?? ""} className={inputCls} />
-          </label>
+          <div className="flex flex-col gap-1 sm:col-span-2">
+            <span>
+              สินค้า / บริการ <span className="text-xs text-wiki-muted">(แถวละรายการ สูงสุด 30 รายการ · กด Enter ที่แถวสุดท้ายเพื่อเพิ่ม)</span>
+            </span>
+            <RowListEditor
+              name="service"
+              initial={(profile?.services ?? "").split("\n").map((s) => s.trim()).filter(Boolean)}
+              max={30}
+              maxLength={200}
+              placeholder="เช่น นำเข้าแรงงานต่างด้าว MOU"
+            />
+          </div>
           <div className="flex items-center gap-3 sm:col-span-2">
             {logo && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -116,6 +143,41 @@ export default async function CompanyDashboard({ params, searchParams }: Props) 
             </button>
           </div>
         </form>
+      </section>
+
+      {/* ------------------------------------------------------------ กรรมการ */}
+      <section id="directors">
+        <h2 className="wiki-h2">รายชื่อกรรมการ</h2>
+        {dirSource && dirSource !== "owner" ? (
+          <p className="text-sm text-wiki-muted">
+            บริษัทนี้มีรายชื่อกรรมการจากแหล่งข้อมูลทางการแล้ว หากไม่ถูกต้อง โปรด <Link href={`/contact?type=correction&id=${id}`}>แจ้งแก้ไข</Link>
+          </p>
+        ) : (
+          <form action={saveDirectors} className="max-w-3xl space-y-2 text-sm">
+            <input type="hidden" name="juristicId" value={id} />
+            <p className="text-xs text-wiki-muted">
+              กรอกตามหนังสือรับรองนิติบุคคล (สูงสุด {MAX_DIRECTORS} คน) — เว้นว่างทุกช่องแล้วบันทึกเพื่อเอาออก · แสดงบนหน้าบริษัทพร้อมป้าย
+              &ldquo;ข้อมูลจากเจ้าของกิจการ&rdquo; (แยกจากข้อมูลทางการ)
+            </p>
+            {directorRows.map((d, i) => (
+              <div key={i} className="grid grid-cols-[2rem_minmax(0,2fr)_minmax(0,1fr)] items-center gap-2">
+                <span className="text-right text-wiki-muted tabular-nums">{i + 1}.</span>
+                <input name="dName" defaultValue={d.name} maxLength={255} placeholder="ชื่อ–นามสกุล (เช่น นายสมชาย ใจดี)" className={inputCls} />
+                <input name="dPosition" defaultValue={d.position ?? ""} maxLength={128} placeholder="ตำแหน่ง (เช่น กรรมการผู้มีอำนาจ)" className={inputCls} />
+              </div>
+            ))}
+            {directorRows.length < MAX_DIRECTORS && (
+              <p className="text-xs text-wiki-muted">ต้องการเพิ่มอีก? บันทึกแล้วจะมีช่องว่างเพิ่มให้</p>
+            )}
+            <label className="flex items-start gap-2">
+              <input type="checkbox" name="consent" value="1" className="mt-1" defaultChecked={directors.length > 0} />
+              <span>ยืนยันว่ารายชื่อตรงกับหนังสือรับรองนิติบุคคล และบุคคลที่ระบุรับทราบการเผยแพร่ชื่อบนเว็บไซต์</span>
+            </label>
+            <button type="submit" className={primaryButtonCls}>
+              บันทึกรายชื่อกรรมการ
+            </button>
+          </form>
+        )}
       </section>
 
       {/* ---------------------------------------------------------- ประกาศงาน */}

@@ -35,7 +35,7 @@ async function main() {
   let totalRows = 0;
 
   const upsertSql: Record<Kind, string> = {
-    // ชุดตั้งใหม่: ถ้าเลิกไปแล้ว (มีข้อมูลชุดเลิก) อย่าเขียนทับชื่อ/ทุน/ที่อยู่ที่ใหม่กว่า
+    // ชุดตั้งใหม่ = ข้อมูล ณ วันจดทะเบียน: ถ้าเลิกไปแล้ว หรือเคยอัปเดตจาก DBD Open API แล้ว อย่าเขียนทับชื่อ/ทุน/ที่อยู่ที่ใหม่กว่า
     new: `
       INSERT INTO juristic (id, name_th, name_raw, juristic_type, register_date, register_capital, tsic_code,
         objective, address_line, sub_district, district, province, post_code, new_resource_id)
@@ -43,17 +43,17 @@ async function main() {
       ON DUPLICATE KEY UPDATE
         register_date    = VALUES(register_date),
         new_resource_id  = VALUES(new_resource_id),
-        name_th          = IF(dissolved_date IS NULL, VALUES(name_th), name_th),
-        name_raw         = IF(dissolved_date IS NULL, VALUES(name_raw), name_raw),
-        juristic_type    = IF(dissolved_date IS NULL, VALUES(juristic_type), juristic_type),
-        register_capital = IF(dissolved_date IS NULL, VALUES(register_capital), register_capital),
-        tsic_code        = IF(dissolved_date IS NULL, VALUES(tsic_code), tsic_code),
-        objective        = IF(dissolved_date IS NULL, VALUES(objective), objective),
-        address_line     = IF(dissolved_date IS NULL, VALUES(address_line), address_line),
-        sub_district     = IF(dissolved_date IS NULL, VALUES(sub_district), sub_district),
-        district         = IF(dissolved_date IS NULL, VALUES(district), district),
-        province         = IF(dissolved_date IS NULL, VALUES(province), province),
-        post_code        = IF(dissolved_date IS NULL, VALUES(post_code), post_code)`,
+        name_th          = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(name_th), name_th),
+        name_raw         = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(name_raw), name_raw),
+        juristic_type    = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(juristic_type), juristic_type),
+        register_capital = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(register_capital), register_capital),
+        tsic_code        = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(tsic_code), tsic_code),
+        objective        = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(objective), objective),
+        address_line     = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(address_line), address_line),
+        sub_district     = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(sub_district), sub_district),
+        district         = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(district), district),
+        province         = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(province), province),
+        post_code        = IF(dissolved_date IS NULL AND dbd_fetched_at IS NULL, VALUES(post_code), post_code)`,
     // ชุดเลิก: ข้อมูล ณ วันเลิกเป็นข้อมูลล่าสุด เขียนทับได้ทุกฟิลด์ ยกเว้นวันจดทะเบียน
     dissolved: `
       INSERT INTO juristic (id, name_th, name_raw, juristic_type, dissolved_date, register_capital, tsic_code,

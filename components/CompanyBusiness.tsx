@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import Paragraphs from "@/components/Paragraphs";
 import { EMPLOYMENT_TYPES, type CompanyProfile, type JobPost, type NewsPost } from "@/lib/business";
@@ -12,19 +13,22 @@ export default function CompanyBusiness({
   profile,
   jobs,
   news,
+  contact,
 }: {
   profile: CompanyProfile | null;
   jobs: JobPost[];
   news: NewsPost[];
+  /** กล่องข้อมูลติดต่อ — แสดงต่อจากสินค้า/บริการ */
+  contact?: ReactNode;
 }) {
   const logo = mediaUrl(profile?.logo);
   const services = profile?.services?.split("\n").map((s) => s.trim()).filter(Boolean) ?? [];
   const hasProfile = Boolean(profile?.about || services.length || logo);
-  if (!hasProfile && jobs.length === 0 && news.length === 0) return null;
+  if (!hasProfile && jobs.length === 0 && news.length === 0 && !contact) return null;
 
   return (
     <>
-      {hasProfile && (
+      {(hasProfile || contact) && (
         <section id="about" aria-labelledby="about-h">
           <h2 id="about-h" className="wiki-h2 flex items-center gap-2">
             เกี่ยวกับบริษัท <span className="text-sm text-green-800">✔ ข้อมูลจากเจ้าของกิจการ</span>
@@ -46,6 +50,7 @@ export default function CompanyBusiness({
               </ul>
             </>
           )}
+          {contact}
         </section>
       )}
 

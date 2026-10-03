@@ -205,6 +205,21 @@ export interface JuristicProfile {
   objective?: string;
   branchName: string;
   address: Address;
+  /** ข้อมูลชุดนี้เป็นข้อมูล ณ เมื่อไร / จากแหล่งใด (มีเมื่ออ่านจาก DB หรือ DBD Open API) */
+  dataAsOf?: DataAsOf;
+}
+
+/**
+ * ที่มาและวันที่ของข้อมูลทะเบียน
+ * - dbd: ตรวจกับ DBD Open API (ข้อมูลปัจจุบัน) เมื่อ `at`
+ * - opend-new / opend-dissolved: ชุดข้อมูลรายเดือนของ DBD บน data.go.th (ข้อมูล ณ วันจดทะเบียน / วันเลิก) ประจำเดือน `period`
+ */
+export interface DataAsOf {
+  kind: "dbd" | "opend-new" | "opend-dissolved";
+  /** ISO timestamp: เวลาที่ตรวจกับ DBD หรือเวลาที่ sync ชุดข้อมูลรายเดือน */
+  at: string;
+  /** เดือนของชุดข้อมูล เช่น "กรกฎาคม 2565" (เฉพาะ opend-*) */
+  period?: string;
 }
 
 export interface Director {
