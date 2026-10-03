@@ -1,0 +1,50 @@
+/** Facebook ส่งผู้ใช้กลับมาที่นี่หลังอนุญาต (หรือปฏิเสธ) */
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createSessionForUser, getCurrentUser, safeNext, setSessionCookie } from "@/lib/auth";
+import { facebookExchangeCode, facebookProfile } from "@/lib/facebook";
+import { linkIdentity, loginWithExternal } from "@/lib/identity";
+import { facebookRedirectUri, OAUTH_COOKIE } from "@/app/auth/facebook/redirect-uri";
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const store = await cookies();
+  let saved: { state?: string; next?: string; link?: boolean } = {};
+  try {
+    saved = JSON.parse(store.get(OAUTH_COOKIE)?.value ?? "{}");
+  } catch {
+    /* cookie เสีย → ถือว่าไม่ผ่าน state */
+  }
+  store.delete(OAUTH_COOKIE);
+  const back = saved.link ? "/account" : "/login";
+
+  // ผู้ใช้กดยกเลิกในหน้าของ Facebook
+  if (url.searchParams.get("error")) redirect(`${back}?error=fb-cancel`);
+  const code = url.searchParams.get("code");
+  if (!code || !saved.state || url.searchParams.get("state") !== saved.state) redirect(`${back}?error=fb-state`);
+
+  let profile: { id: string; name?: string; email?: string };
+  try {
+    profile = await facebookProfile(await facebookExchangeCode(code, facebookRedirectUri(req.url)));
+  } catch (e) {
+    console.error("[auth] facebook callback failed:", e);
+    redirect(`${back}?error=fb-failed`);
+  }
+  const external = { provider: "facebook" as const, uid: profile.id, email: profile.email, name: profile.name };
+
+  // เชื่อม Facebook กับบัญชีที่ login อยู่
+  if (saved.link) {
+    const user = await getCurrentUser();
+    if (!user) redirect("/login?next=/account");
+    const res = await linkIdentity(user.id, external);
+    redirect(res === "ok" ? "/account?ok=fb-linked#login-methods" : "/account?error=fb-conflict#login-methods");
+  }
+
+  const result = await loginWithExternal(external);
+  if ("pendingToken" in result) {
+    // Facebook ไม่ให้อีเมล → ให้ผู้ใช้กรอกอีเมลและยืนยันก่อน แล้วจึงเชื่อมบัญชี
+    redirect(`/login?fb=need-email&pending=${encodeURIComponent(result.pendingToken)}&next=${encodeURIComponent(safeNext(saved.next))}`);
+  }
+  await setSessionCookie(await createSessionForUser(result.userId));
+  redirect(safeNext(saved.next));
+}

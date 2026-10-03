@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* Wikipedia-inspired design tokens → ใช้เป็น class ได้ เช่น bg-wiki-bg, border-wiki-border, text-wiki-link */
+@theme {
+  --color-wiki-bg: #f8f9fa;
+  --color-wiki-border: #a2a9b1;
+  --color-wiki-border-light: #c8ccd1;
+  --color-wiki-link: #0645ad;
+  --color-wiki-link-visited: #0b0080;
+  --color-wiki-text: #202122;
+  --color-wiki-muted: #54595d;
+  --color-wiki-header: #eaecf0;
+
+  --font-sans: var(--font-sarabun), "Noto Sans Thai", -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-serif: "Linux Libertine", Georgia, Times, var(--font-sarabun), serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-wiki-bg font-sans text-wiki-text antialiased;
+    line-height: 1.6;
+  }
+
+  a {
+    @apply text-wiki-link no-underline hover:underline;
+  }
+
+  a:visited {
+    @apply text-wiki-link-visited;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-wiki-link);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* หัวข้อ Section แบบ Wikipedia: serif + เส้นใต้ */
+  .wiki-h2 {
+    @apply mt-8 mb-3 border-b border-wiki-border pb-1 font-serif text-[1.5rem] leading-tight font-normal;
+  }
+
+  /* ตาราง .wikitable */
+  .wikitable {
+    @apply w-full border-collapse border border-wiki-border bg-wiki-bg text-sm;
+  }
+  .wikitable th,
+  .wikitable td {
+    @apply border border-wiki-border px-2.5 py-1.5 align-top;
+  }
+  .wikitable th {
+    @apply bg-wiki-header text-center font-bold;
+  }
+  .wikitable caption {
+    @apply pb-1 text-left font-bold;
+  }
+}

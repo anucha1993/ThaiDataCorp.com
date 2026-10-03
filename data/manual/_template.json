@@ -1,0 +1,12 @@
+{
+  "id": "0000000000000",
+  "consent": false,
+  "_source": "ระบุที่มาของข้อมูล และยืนยันว่าเจ้าของบริษัทยินยอมให้เผยแพร่ (เปลี่ยน consent เป็น true)",
+  "authorizedSignatory": "",
+  "businessSize": "S",
+  "directors": [{ "name": "", "position": "" }],
+  "shareholders": [{ "name": "", "nationality": "ไทย", "shares": 0 }],
+  "financials": [
+    { "fiscalYear": 2568, "totalRevenue": 0, "netProfit": 0, "totalAssets": 0, "totalLiabilities": 0, "equity": 0 }
+  ]
+}
