@@ -598,3 +598,6 @@ CREATE TABLE IF NOT EXISTS adsense_report (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('adsense-report', 1, '30 6 * * *', NULL);
+
+-- v30: ไม่นับสถิติการเข้าชมของสมาชิกบางคน (เช่น ทีมงานที่ทดสอบเว็บ) — ตั้งที่ /admin/members/[id]
+ALTER TABLE app_user ADD COLUMN IF NOT EXISTS no_analytics TINYINT(1) NOT NULL DEFAULT 0 AFTER suspended_by;

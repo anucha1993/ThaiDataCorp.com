@@ -6,6 +6,7 @@ import {
   adminRevoke,
   adminSetPassword,
   adminSetPlan,
+  adminSetNoAnalytics,
   adminSuspendMember,
   adminUnsuspendMember,
 } from "@/app/admin/actions";
@@ -28,6 +29,8 @@ type Props = {
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 const MSG: Record<string, { tone: "ok" | "error"; text: string }> = {
+  "ok:no-analytics": { tone: "ok", text: "ตั้งแล้ว — การเข้าชมของผู้ใช้นี้จะไม่ถูกนับในสถิติ (ตั้งแต่ตอนนี้เป็นต้นไป)" },
+  "ok:analytics": { tone: "ok", text: "กลับมานับสถิติของผู้ใช้นี้ตามปกติแล้ว" },
   "ok:plan": { tone: "ok", text: "เปลี่ยนแพ็กเกจแล้ว" },
   "ok:extended": { tone: "ok", text: "ต่ออายุแล้ว" },
   "ok:revoked": { tone: "ok", text: "บังคับออกจากระบบทุกอุปกรณ์แล้ว" },
@@ -186,6 +189,23 @@ export default async function MemberPage({ params, searchParams }: Props) {
               />
               <button type="submit" className={buttonCls}>
                 ตั้งรหัส
+              </button>
+            </form>
+            <form action={adminSetNoAnalytics} className="flex flex-wrap items-center gap-2 border border-wiki-border-light p-3 text-sm">
+              <input type="hidden" name="id" value={u.id} />
+              <input type="hidden" name="no_analytics" value={Number(u.no_analytics) === 1 ? "0" : "1"} />
+              <span className="flex-1">
+                <b>สถิติการเข้าชม:</b>{" "}
+                {Number(u.no_analytics) === 1 ? (
+                  <span className="text-amber-800">ไม่นับ (เช่น ทีมงาน/ผู้ทดสอบ)</span>
+                ) : isAdmin ? (
+                  <span className="text-wiki-muted">ผู้ดูแล — ไม่นับตามค่า &ldquo;ไม่นับผู้ดูแล&rdquo; ที่หน้าสถิติ</span>
+                ) : (
+                  "นับตามปกติ"
+                )}
+              </span>
+              <button type="submit" className={buttonCls}>
+                {Number(u.no_analytics) === 1 ? "กลับมานับสถิติ" : "ไม่นับสถิติของผู้ใช้นี้"}
               </button>
             </form>
             <form

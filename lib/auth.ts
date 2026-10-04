@@ -193,6 +193,23 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   };
 }
 
+/**
+ * ผู้ใช้ของ session นี้ต้องไม่นับในสถิติหรือไม่ (ตั้งรายคนที่ /admin/members หรือเป็นผู้ดูแลเมื่อเปิด "ไม่นับผู้ดูแล")
+ * query เดียว ไม่โหลดแพ็กเกจ — ใช้ใน /api/track ซึ่งถูกเรียกทุกการเข้าชม
+ */
+export async function isAnalyticsExcluded(token: string | undefined): Promise<boolean> {
+  if (!token) return false;
+  const [u] = await dbQuery<RowDataPacket[]>(
+    `SELECT u.email, u.no_analytics FROM user_session s JOIN app_user u ON u.id = s.user_id
+     WHERE s.id_hash = ? AND s.expires_at > NOW()`,
+    [sha256(token)],
+  );
+  if (!u) return false;
+  if (Number(u.no_analytics) === 1) return true;
+  if ((await getSetting("analytics_exclude_admins")) === "0") return false;
+  return (await adminEmails()).has(String(u.email).toLowerCase());
+}
+
 /** ต้อง login — ถ้ายังไม่ได้ login ส่งไปหน้า /login แล้วกลับมาที่ next */
 export async function requireUser(next: string): Promise<CurrentUser> {
   const user = await getCurrentUser();

@@ -5,6 +5,7 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { adminEmails, requireUser, setUserPassword } from "@/lib/auth";
 import { passwordProblem } from "@/lib/password";
@@ -20,7 +21,7 @@ import {
 import { dbQuery } from "@/lib/db";
 import { isValidCron, jobByKey, nextRunUtc, parseArgs } from "@/lib/jobs";
 import { FREE_PLAN_ID, getPlans, invalidatePlans, isValidPlanSlug } from "@/lib/plans";
-import { getSupportEmail, SETTINGS, setSettings } from "@/lib/settings";
+import { getSupportEmail, SETTINGS, setInternalSettings, setSettings } from "@/lib/settings";
 import { SITE_NAME, SITE_URL } from "@/lib/format";
 import { isMailConfigured, sendMail } from "@/lib/mailer";
 import { adminSetJobHidden, adminSetNewsHidden, decideClaim, removeCompanyMember, setProfileHidden } from "@/lib/business";
@@ -340,6 +341,42 @@ export async function adminSuspendMember(formData: FormData) {
   if (reason.length < 3) redirect(`/admin/members/${id}?error=reason`);
   await suspendMember(id, reason, me.id);
   redirect(`/admin/members/${id}?ok=suspended`);
+}
+
+/** ไม่นับ/นับสถิติการเข้าชมของสมาชิกคนนี้ */
+export async function adminSetNoAnalytics(formData: FormData) {
+  await requireAdmin();
+  const id = int(formData, "id", 1);
+  const on = formData.get("no_analytics") === "1";
+  await dbQuery(`UPDATE app_user SET no_analytics = ? WHERE id = ?`, [on ? 1 : 0, id]);
+  redirect(`/admin/members/${id}?ok=${on ? "no-analytics" : "analytics"}`);
+}
+
+/** ตั้งค่าการไม่นับสถิติ: ผู้ดูแลทั้งหมด / เครื่องนี้ */
+export async function setAnalyticsExclusion(formData: FormData) {
+  await requireAdmin();
+  const what = str(formData, "what");
+  if (what === "admins-on" || what === "admins-off") {
+    await setInternalSettings({ analytics_exclude_admins: what === "admins-on" ? "1" : "0" });
+  }
+  if (what === "device-on" || what === "device-off") {
+    const jar = await cookies();
+    if (what === "device-on") {
+      jar.set("tdc_notrack", "1", { maxAge: 2 * 365 * 86400, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+    } else jar.delete("tdc_notrack");
+  }
+  redirect(`/admin/analytics?ok=${what}#exclude`);
+}
+
+/** ลบสถิติที่มาจาก IP ปัจจุบันของผู้ดูแล (ล้างการเข้าชมระหว่างทดสอบเว็บ) — ต้องพิมพ์ยืนยัน */
+export async function purgeMyIpViews(formData: FormData) {
+  await requireAdmin();
+  if (str(formData, "confirm") !== "DELETE") redirect("/admin/analytics?error=confirm#exclude");
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "";
+  if (!ip) redirect("/admin/analytics?error=no-ip#exclude");
+  const res = await dbQuery<import("mysql2").ResultSetHeader>(`DELETE FROM page_view WHERE ip = ?`, [ip]);
+  redirect(`/admin/analytics?ok=purged&n=${res.affectedRows}#exclude`);
 }
 
 export async function adminUnsuspendMember(formData: FormData) {

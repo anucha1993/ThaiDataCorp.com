@@ -3,7 +3,10 @@
  * จึงนับฝั่ง browser แทนการนับตอน render · IP เก็บ 90 วัน · คุกกี้ tdc_vid เฉพาะผู้ยอมรับคุกกี้สถิติ (ดู lib/analytics.ts)
  */
 import { cookies, headers } from "next/headers";
-import { SESSION_COOKIE } from "@/lib/auth";
+import { isAnalyticsExcluded, SESSION_COOKIE } from "@/lib/auth";
+
+/** คุกกี้ "ไม่นับเครื่องนี้" (ตั้งจาก /admin/analytics) */
+const NO_TRACK_COOKIE = "tdc_notrack";
 import { classify, isBot, parseUa, purgeOldViews, recordView, visitorHash } from "@/lib/analytics";
 import { SITE_URL } from "@/lib/format";
 
@@ -31,6 +34,9 @@ export async function POST(req: Request) {
     }
 
     const jar = await cookies();
+    // ทีมงาน/ผู้ทดสอบ: ไม่นับเครื่องนี้ หรือไม่นับบัญชีนี้
+    if (jar.get(NO_TRACK_COOKIE)?.value === "1") return new Response(null, { status: 204 });
+    if (await isAnalyticsExcluded(jar.get(SESSION_COOKIE)?.value).catch(() => false)) return new Response(null, { status: 204 });
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "0";
     const c = classify(url.pathname, url.searchParams);
     // หน้า /search เก็บ path พร้อมคำค้น (ไม่เก็บ query string อื่น เช่น page / ตัวกรอง)

@@ -2,7 +2,12 @@ import Link from "next/link";
 import AdminCard from "@/components/AdminCard";
 import RangeSelect from "@/components/RangeSelect";
 import { ShareBar } from "@/components/HomeCharts";
-import { buttonCls, inputCls } from "@/components/Panel";
+import { buttonCls, inputCls, Notice } from "@/components/Panel";
+import { cookies, headers } from "next/headers";
+import { purgeMyIpViews, setAnalyticsExclusion } from "@/app/admin/actions";
+import { dbQuery } from "@/lib/db";
+import { getSetting } from "@/lib/settings";
+import type { RowDataPacket } from "mysql2";
 import { ViewsLine } from "@/components/ViewsChart";
 import { getConsentStats, getOverview, getRealtime, type AnalyticsFilter } from "@/lib/analytics";
 import { agencyUrl, formatNumber, tsicUrl } from "@/lib/format";
@@ -42,7 +47,27 @@ export default async function AnalyticsPage({ searchParams }: Props) {
     id: one(q.id) || undefined,
     path: one(q.path).startsWith("/") ? one(q.path) : undefined,
   };
-  const [o, rt, cs] = await Promise.all([getOverview(f), getRealtime(), getConsentStats(f)]);
+  // ไม่นับสถิติของทีมงาน: สถานะปัจจุบัน + IP ของเครื่องนี้
+  const h = await headers();
+  const myIp = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "";
+  const deviceExcluded = (await cookies()).get("tdc_notrack")?.value === "1";
+  const [o, rt, cs, excludeAdmins, excludedUsers, myIpViews] = await Promise.all([
+    getOverview(f),
+    getRealtime(),
+    getConsentStats(f),
+    getSetting("analytics_exclude_admins").then((v) => v !== "0"),
+    dbQuery<RowDataPacket[]>(`SELECT id, email FROM app_user WHERE no_analytics = 1 ORDER BY email LIMIT 50`),
+    myIp ? dbQuery<RowDataPacket[]>(`SELECT COUNT(*) n FROM page_view WHERE ip = ?`, [myIp]).then((r) => Number(r[0]?.n ?? 0)) : Promise.resolve(0),
+  ]);
+  const okMsg: Record<string, string> = {
+    "admins-on": "ไม่นับการเข้าชมของผู้ดูแลทุกคนแล้ว",
+    "admins-off": "กลับมานับการเข้าชมของผู้ดูแลแล้ว",
+    "device-on": "ไม่นับเครื่องนี้แล้ว (แม้ไม่ได้เข้าสู่ระบบ) — มีผลกับเบราว์เซอร์นี้เท่านั้น",
+    "device-off": "กลับมานับเครื่องนี้แล้ว",
+    purged: `ลบสถิติจาก IP ของเครื่องนี้แล้ว ${one(q.n)} รายการ`,
+  };
+  const notice = one(q.ok) ? okMsg[one(q.ok)] : null;
+  const errMsg = one(q.error) === "confirm" ? "พิมพ์ DELETE เพื่อยืนยันการลบ" : one(q.error) === "no-ip" ? "ไม่พบ IP ของเครื่องนี้" : null;
   const base = { range, from: f.from, to: f.to };
   const drill = (extra: Record<string, string>) => `/admin/analytics?${new URLSearchParams({ ...base, ...extra })}`;
   const scoped = Boolean(f.type || f.path);
@@ -269,6 +294,54 @@ export default async function AnalyticsPage({ searchParams }: Props) {
           </ul>
         </AdminCard>
       </div>
+      <section id="exclude">
+        <AdminCard title="ไม่นับสถิติของทีมงาน / ผู้ทดสอบ">
+          {notice && <Notice tone="ok">{notice}</Notice>}
+          {errMsg && <Notice tone="error">{errMsg}</Notice>}
+          <div className="grid gap-3 text-sm md:grid-cols-2">
+            <form action={setAnalyticsExclusion} className="border border-wiki-border-light p-3">
+              <input type="hidden" name="what" value={excludeAdmins ? "admins-off" : "admins-on"} />
+              <b>ผู้ดูแลทุกคน:</b> {excludeAdmins ? <span className="text-green-800">ไม่นับ</span> : "นับตามปกติ"}
+              <p className="my-1 text-xs text-wiki-muted">เมื่อเข้าสู่ระบบด้วยบัญชีผู้ดูแล การเข้าชมจะไม่ถูกนับ</p>
+              <button type="submit" className={buttonCls}>
+                {excludeAdmins ? "กลับมานับผู้ดูแล" : "ไม่นับผู้ดูแล"}
+              </button>
+            </form>
+            <form action={setAnalyticsExclusion} className="border border-wiki-border-light p-3">
+              <input type="hidden" name="what" value={deviceExcluded ? "device-off" : "device-on"} />
+              <b>เครื่องนี้ (เบราว์เซอร์นี้):</b> {deviceExcluded ? <span className="text-green-800">ไม่นับ</span> : "นับตามปกติ"}
+              <p className="my-1 text-xs text-wiki-muted">ไม่นับแม้ออกจากระบบ — เหมาะกับการทดสอบหน้าเว็บแบบผู้ใช้ทั่วไป (ทำซ้ำในแต่ละเบราว์เซอร์/มือถือ)</p>
+              <button type="submit" className={buttonCls}>
+                {deviceExcluded ? "กลับมานับเครื่องนี้" : "ไม่นับเครื่องนี้"}
+              </button>
+            </form>
+            <div className="border border-wiki-border-light p-3">
+              <b>สมาชิกที่ไม่นับ ({excludedUsers.length}):</b>{" "}
+              {excludedUsers.length === 0 ? (
+                <span className="text-wiki-muted">ยังไม่มี</span>
+              ) : (
+                excludedUsers.map((u, i) => (
+                  <span key={u.id}>
+                    {i > 0 && ", "}
+                    <Link href={`/admin/members/${u.id}`}>{u.email}</Link>
+                  </span>
+                ))
+              )}
+              <p className="mt-1 text-xs text-wiki-muted">ตั้งรายคนได้ที่หน้าสมาชิก → &ldquo;ไม่นับสถิติของผู้ใช้นี้&rdquo;</p>
+            </div>
+            <form action={purgeMyIpViews} className="border border-red-300 p-3">
+              <b>ลบสถิติเก่าจากเครื่องนี้:</b> IP <span className="font-mono">{myIp || "-"}</span> มี {formatNumber(myIpViews)} รายการ
+              <p className="my-1 text-xs text-wiki-muted">ล้างการเข้าชมระหว่างทดสอบที่ถูกนับไปแล้ว (ลบถาวร เฉพาะรายการที่มาจาก IP นี้)</p>
+              <div className="flex gap-2">
+                <input name="confirm" placeholder="พิมพ์ DELETE" className={`${inputCls} w-32`} />
+                <button type="submit" className={`${buttonCls} text-red-800`} disabled={myIpViews === 0}>
+                  ลบ
+                </button>
+              </div>
+            </form>
+          </div>
+        </AdminCard>
+      </section>
     </>
   );
 }
