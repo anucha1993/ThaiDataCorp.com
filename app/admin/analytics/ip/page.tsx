@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AdminCard from "@/components/AdminCard";
+import RangeSelect from "@/components/RangeSelect";
 import { buttonCls, inputCls } from "@/components/Panel";
 import { getIpViews, getTopIps } from "@/lib/analytics";
 import { formatNumber } from "@/lib/format";
@@ -69,12 +70,18 @@ export default async function IpPage({ searchParams }: Props) {
   return (
     <AdminCard title="IP ที่เข้าชม (บันทึกความปลอดภัย)" actions={<Link href="/admin/analytics">← สถิติผู้เข้าชม</Link>}>
       <form className="mb-3 flex flex-wrap items-end gap-2 text-sm">
-        <select name="days" defaultValue={String(days)} className={inputCls}>
-          <option value="1">24 ชั่วโมง</option>
-          <option value="7">7 วัน</option>
-          <option value="30">30 วัน</option>
-          <option value="90">90 วัน</option>
-        </select>
+        <RangeSelect
+          key={days}
+          name="days"
+          defaultValue={String(days)}
+          className={inputCls}
+          options={[
+            ["1", "24 ชั่วโมง"],
+            ["7", "7 วัน"],
+            ["30", "30 วัน"],
+            ["90", "90 วัน"],
+          ]}
+        />
         <input name="ip" placeholder="ค้นหา IP" className={`${inputCls} w-48`} />
         <button type="submit" className={buttonCls}>
           แสดง

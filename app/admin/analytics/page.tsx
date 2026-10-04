@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AdminCard from "@/components/AdminCard";
+import RangeSelect from "@/components/RangeSelect";
 import { ShareBar } from "@/components/HomeCharts";
 import { buttonCls, inputCls } from "@/components/Panel";
 import { ViewsLine } from "@/components/ViewsChart";
@@ -24,9 +25,16 @@ const TYPE_LABEL: Record<string, string> = {
 export default async function AnalyticsPage({ searchParams }: Props) {
   const q = await searchParams;
   const today = thToday();
-  const range = one(q.range) || "30";
+  let range = one(q.range) || "30";
+  // จำนวนวันของช่วงสำเร็จรูป ("1" = วันนี้ → ย้อน 0 วัน) — ค่าไม่ถูกต้องใช้ 30 วัน
+  const presetDays = [1, 7, 30, 90, 365].includes(Number(range)) ? Number(range) : 30;
+  const presetFrom = minusDays(today, presetDays - 1);
+  // ระบุวันที่เองแต่ไม่ได้เลือก "กำหนดเอง" (เช่น เปิดจากลิงก์/ไม่มี JavaScript) → ถือว่ากำหนดเอง
+  if (range !== "custom" && isDate(one(q.from)) && isDate(one(q.to)) && (one(q.from) !== presetFrom || one(q.to) !== today)) {
+    range = "custom";
+  }
   const to = range === "custom" && isDate(one(q.to)) ? one(q.to) : today;
-  const from = range === "custom" && isDate(one(q.from)) ? one(q.from) : minusDays(today, Number(range) - 1 || 29);
+  const from = range === "custom" && isDate(one(q.from)) ? one(q.from) : presetFrom;
   const f: AnalyticsFilter = {
     from: from <= to ? from : to,
     to,
@@ -47,22 +55,28 @@ export default async function AnalyticsPage({ searchParams }: Props) {
         <form className="mb-3 flex flex-wrap items-end gap-2 text-sm">
           <label className="flex flex-col gap-1">
             ช่วงเวลา
-            <select name="range" defaultValue={range} className={inputCls}>
-              <option value="1">วันนี้</option>
-              <option value="7">7 วัน</option>
-              <option value="30">30 วัน</option>
-              <option value="90">90 วัน</option>
-              <option value="365">1 ปี</option>
-              <option value="custom">กำหนดเอง</option>
-            </select>
+            {/* key: ให้ค่าที่เลือกตรงกับผลที่แสดงเสมอหลังเปลี่ยนหน้า */}
+            <RangeSelect
+              key={`${range}-${from}-${to}`}
+              defaultValue={range}
+              className={inputCls}
+              options={[
+                ["1", "วันนี้"],
+                ["7", "7 วัน"],
+                ["30", "30 วัน"],
+                ["90", "90 วัน"],
+                ["365", "1 ปี"],
+                ["custom", "กำหนดเอง"],
+              ]}
+            />
           </label>
           <label className="flex flex-col gap-1">
             ตั้งแต่
-            <input type="date" name="from" defaultValue={f.from} className={inputCls} />
+            <input key={`from-${f.from}`} type="date" name="from" defaultValue={f.from} max={today} className={inputCls} />
           </label>
           <label className="flex flex-col gap-1">
             ถึง
-            <input type="date" name="to" defaultValue={f.to} className={inputCls} />
+            <input key={`to-${f.to}`} type="date" name="to" defaultValue={f.to} max={today} className={inputCls} />
           </label>
           <label className="flex flex-col gap-1">
             เจาะจงหน้า (path ขึ้นต้นด้วย)

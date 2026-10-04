@@ -18,6 +18,8 @@ import CompanyContact from "@/components/CompanyContact";
 import CompanyBusiness from "@/components/CompanyBusiness";
 import { directorSource, getProfile, isVerifiedCompany, listCompanyJobs, listCompanyNews } from "@/lib/business";
 import ViewsBox from "@/components/ViewsChart";
+import { Bone, SkeletonSection } from "@/components/Skeleton";
+import { Suspense } from "react";
 import { getEntityDaily } from "@/lib/analytics";
 import { getJuristicContact } from "@/lib/support";
 import WatchButton from "@/components/WatchButton";
@@ -109,20 +111,19 @@ export default async function CompanyPage({ params }: PageProps) {
   const data = await getCompany(id);
   if (!data) notFound();
   const db = getProvider() === "db";
-  const [contact, views, bizProfile, verified, bizJobs, bizNews, dirSource, vat, changes, competitors] = db
+  // ส่วนที่ช้า (สถิติผู้เข้าชม / ประวัติการเปลี่ยนแปลง / คู่แข่ง) แยกไปโหลดใน <Suspense> ด้านล่าง
+  // notFound()/redirect อยู่ก่อน Suspense ทั้งหมด → ยังได้ HTTP 404/308 จริง (สำคัญต่อ SEO)
+  const [contact, bizProfile, verified, bizJobs, bizNews, dirSource, vat] = db
     ? await Promise.all([
         getJuristicContact(id).catch(() => null),
-        getEntityDaily("company", id, 30).catch(() => null),
         getProfile(id).catch(() => null),
         isVerifiedCompany(id).catch(() => false),
         listCompanyJobs(id, true).catch(() => []),
         listCompanyNews(id, true, 5).catch(() => []),
         directorSource(id).catch(() => null),
         getVatInfo(id).catch(() => null),
-        listCompanyChanges(id).catch(() => []),
-        data.procurement ? getCompetitorInfo(id).catch(() => null) : null,
       ])
-    : [null, null, null, false, [], [], null, null, [], null];
+    : [null, null, false, [], [], null, null];
   // ผู้ดูแลระงับข้อมูลจากเจ้าของกิจการ → ไม่แสดงส่วนที่บริษัทเขียนเอง
   const showBiz = verified && !bizProfile?.hidden;
 
@@ -190,7 +191,11 @@ export default async function CompanyPage({ params }: PageProps) {
             {/* Infobox: มือถือแสดงก่อนเนื้อหา, จอใหญ่อยู่ขวา (sticky) */}
             <div className="lg:col-start-2 lg:row-start-1">
               <WikipediaInfobox profile={profile} linkTsic={getProvider() === "db"} procurement={data.procurement} vat={vat} />
-              {views && <ViewsBox title="สถิติการเข้าชม 30 วันล่าสุด" data={views} />}
+              {db && (
+                <Suspense fallback={<Bone className="mt-4 h-44 w-full" />}>
+                  <CompanyViews id={id} />
+                </Suspense>
+              )}
             </div>
 
             <div className="min-w-0 lg:col-start-1 lg:row-start-1">
@@ -297,7 +302,11 @@ export default async function CompanyPage({ params }: PageProps) {
                 )}
               </section>
 
-              <ChangeHistory changes={changes} />
+              {db && (
+                <Suspense fallback={null}>
+                  <CompanyChanges id={id} />
+                </Suspense>
+              )}
               {vat && <VatSection vat={vat} />}
               {data.procurement && (
                 <ProcurementSection
@@ -306,7 +315,11 @@ export default async function CompanyPage({ params }: PageProps) {
                   exportNote={await memberToolNote("contracts")}
                 />
               )}
-              {competitors && <CompetitorSection info={competitors} />}
+              {db && data.procurement && (
+                <Suspense fallback={<SkeletonSection rows={6} cols={5} label="กำลังวิเคราะห์คู่แข่งงานภาครัฐ" />}>
+                  <CompanyCompetitors id={id} />
+                </Suspense>
+              )}
               {data.signals && data.signals.length > 0 && <SignalsSection signals={data.signals} />}
               {data.sameAddress && data.sameAddress.total > 0 && <SameAddressSection data={data.sameAddress} />}
 
@@ -584,4 +597,23 @@ function JsonLd({ data }: { data: CompanyData }) {
 
 function truncate(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                   ส่วนที่โหลดแยก (streaming ผ่าน Suspense)                   */
+/* -------------------------------------------------------------------------- */
+
+async function CompanyViews({ id }: { id: string }) {
+  const views = await getEntityDaily("company", id, 30).catch(() => null);
+  return views ? <ViewsBox title="สถิติการเข้าชม 30 วันล่าสุด" data={views} /> : null;
+}
+
+async function CompanyChanges({ id }: { id: string }) {
+  const changes = await listCompanyChanges(id).catch(() => []);
+  return <ChangeHistory changes={changes} />;
+}
+
+async function CompanyCompetitors({ id }: { id: string }) {
+  const info = await getCompetitorInfo(id).catch(() => null);
+  return info ? <CompetitorSection info={info} /> : null;
 }

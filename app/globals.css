@@ -89,3 +89,9 @@
 .classic-chip:hover {
   border-color: #202122;
 }
+
+/* แถบโหลดตอนเปลี่ยนหน้า (components/NavigationProgress.tsx) — วิ่งเร็วช่วงแรกแล้วช้าลง ไม่ถึง 100% จนกว่าหน้าใหม่จะมา */
+@keyframes navprogress {
+  from { width: 0; }
+  to { width: 92%; }
+}
