@@ -7,7 +7,7 @@ import PageTracker from "@/components/PageTracker";
 import CookieConsent from "@/components/CookieConsent";
 import NavigationProgress from "@/components/NavigationProgress";
 import AdsLoader from "@/components/AdsLoader";
-import { getPublicAdsConfig } from "@/lib/ads";
+import { getAdsConfig, getPublicAdsConfig } from "@/lib/ads";
 import { Suspense } from "react";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/format";
 import "./globals.css";
@@ -42,8 +42,9 @@ const baseMetadata: Metadata = {
 
 /** meta google-adsense-account ใช้ยืนยันความเป็นเจ้าของเว็บกับ AdSense (ใส่เมื่อมี Publisher ID) */
 export async function generateMetadata(): Promise<Metadata> {
-  const ads = await getPublicAdsConfig().catch(() => null);
-  return ads ? { ...baseMetadata, other: { "google-adsense-account": ads.publisherId } } : baseMetadata;
+  // ใส่ทันทีที่มี Publisher ID (แม้ยังไม่เปิดโฆษณา) — ใช้ยืนยันเว็บกับ AdSense ระหว่างรอการอนุมัติ
+  const ads = await getAdsConfig().catch(() => null);
+  return ads?.publisherId ? { ...baseMetadata, other: { "google-adsense-account": ads.publisherId } } : baseMetadata;
 }
 
 export const viewport: Viewport = {

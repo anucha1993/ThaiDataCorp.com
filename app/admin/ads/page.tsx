@@ -67,7 +67,7 @@ export default async function AdsAdminPage({ searchParams }: Props) {
     { ok: exposed === null ? null : !exposed, label: "ไฟล์โค้ดไม่ถูกเปิดจากภายนอก", note: exposed ? "เปิด package.json ได้ — ตั้ง Document Root เป็น /httpdocs/public ใน Plesk" : undefined },
     { ok: Boolean(cfg.publisherId), label: "ใส่ Publisher ID แล้ว", note: "ได้จาก AdSense → บัญชี → ข้อมูลบัญชี" },
     { ok: Boolean(cfg.publisherId), label: "ads.txt พร้อม (สร้างอัตโนมัติ)", note: <a href="/ads.txt" target="_blank" rel="noopener">/ads.txt</a> },
-    { ok: Boolean(cfg.publisherId), label: "meta ยืนยันเว็บ google-adsense-account (ใส่อัตโนมัติ)" },
+    { ok: Boolean(cfg.publisherId), label: "meta ยืนยันเว็บ google-adsense-account (ใส่อัตโนมัติเมื่อมี Publisher ID)" },
     { ok: true, label: "นโยบายความเป็นส่วนตัวเปิดเผยคุกกี้โฆษณาของ Google (แสดงเองเมื่อเปิดโฆษณา)", note: <Link href="/terms#privacy">ดู</Link> },
     { ok: true, label: "หน้าเกี่ยวกับเรา / ติดต่อเรา / เงื่อนไขการใช้งาน", note: <Link href="/about">/about</Link> },
     { ok: true, label: "แบนเนอร์ขอความยินยอมคุกกี้ (ไม่ยินยอม = โฆษณาแบบไม่ปรับตามบุคคล)" },
