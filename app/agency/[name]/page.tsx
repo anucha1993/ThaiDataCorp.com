@@ -1,3 +1,4 @@
+import Ad from "@/components/Ad";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -224,6 +225,7 @@ export default async function AgencyPage({ params }: Props) {
             </p>
           </div>
         </div>
+        <Ad page="list" placement="content_bottom" />
       </article>
     </main>
   );

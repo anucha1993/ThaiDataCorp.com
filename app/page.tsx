@@ -1,3 +1,4 @@
+import Ad from "@/components/Ad";
 import Link from "next/link";
 import { MonthlyBars, PortalGlobe, RankBars, ShareBar } from "@/components/HomeCharts";
 import { GuestOnly, MemberOnly } from "@/components/MemberGate";
@@ -209,6 +210,7 @@ export default async function HomePage() {
           <Link href="/tsic">ประเภทธุรกิจ (TSIC)</Link> <Link href="/procurement">บริษัทที่ได้งานภาครัฐมากที่สุด</Link> และ{" "}
           <Link href="/agency">หน่วยงานรัฐที่จัดซื้อจัดจ้างมากที่สุด</Link>
         </p>
+        <Ad page="home" placement="content_bottom" />
       </article>
     </main>
   );

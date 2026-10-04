@@ -69,6 +69,18 @@ export async function setSettings(values: Record<string, string>): Promise<void>
   g.__tdcSettings = undefined;
 }
 
+/**
+ * บันทึกค่าภายในระบบที่ไม่อยู่ในฟอร์ม /admin/settings (เช่น ads_config JSON, token การเชื่อมต่อ AdSense)
+ * null = ลบค่า
+ */
+export async function setInternalSettings(values: Record<string, string | null>): Promise<void> {
+  for (const [k, v] of Object.entries(values)) {
+    if (v === null) await dbQuery(`DELETE FROM app_setting WHERE k = ?`, [k]);
+    else await dbQuery(`INSERT INTO app_setting (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)`, [k, v.slice(0, 8000)]);
+  }
+  g.__tdcSettings = undefined;
+}
+
 export const DEFAULT_SUPPORT_EMAIL = "info@thaidatacorp.com";
 
 /** อีเมลติดต่อ/ร้องเรียนที่แสดงบนเว็บ และรับแจ้งเตือนคำร้องใหม่ */

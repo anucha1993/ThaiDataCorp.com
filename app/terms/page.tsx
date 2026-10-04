@@ -3,6 +3,7 @@ import Panel from "@/components/Panel";
 import { isBillingEnabled } from "@/lib/billing";
 import { SITE_NAME } from "@/lib/format";
 import { getSupportEmail } from "@/lib/settings";
+import { getAdsConfig } from "@/lib/ads";
 
 export const metadata: Metadata = {
   title: "เงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว",
@@ -16,7 +17,8 @@ export const revalidate = 3600;
  * ⚠ ร่างเบื้องต้น — ให้ฝ่ายกฎหมายตรวจทานก่อนใช้งานจริง โดยเฉพาะก่อนเปิดการเก็บเงิน
  */
 export default async function TermsPage() {
-  const [billing, email] = await Promise.all([isBillingEnabled(), getSupportEmail()]);
+  const [billing, email, adsCfg] = await Promise.all([isBillingEnabled(), getSupportEmail(), getAdsConfig().catch(() => null)]);
+  const ads = Boolean(adsCfg?.enabled);
   const mail = <a href={`mailto:${email}`}>{email}</a>;
 
   return (
@@ -70,8 +72,8 @@ export default async function TermsPage() {
           </ul>
         </section>
 
-        <section>
-          <h2 className="wiki-h2">3. ข้อมูลส่วนบุคคลของผู้ใช้</h2>
+        <section id="privacy">
+          <h2 className="wiki-h2">3. ข้อมูลส่วนบุคคลของผู้ใช้ (นโยบายความเป็นส่วนตัว)</h2>
           <ul className="list-disc pl-6">
             <li>
               เราเก็บอีเมล รหัสผ่าน (ในรูปแบบเข้ารหัสทางเดียว ไม่มีใครอ่านรหัสจริงได้) รายการที่ติดตาม และเงื่อนไขแจ้งเตือน{billing ? " รวมถึงประวัติคำสั่งซื้อ" : ""}{" "}
@@ -84,7 +86,7 @@ export default async function TermsPage() {
             <li>
               การใช้คุกกี้ สถิติการเข้าชม และการเก็บหมายเลข IP ดูรายละเอียดในหัวข้อ <a href="#cookies">คุกกี้และสถิติการเข้าชม</a>
             </li>
-            <li>ไม่ขายหรือเปิดเผยข้อมูลผู้ใช้แก่บุคคลภายนอก เว้นแต่กฎหมายกำหนด</li>
+            <li>ไม่ขายหรือเปิดเผยข้อมูลผู้ใช้แก่บุคคลภายนอก เว้นแต่กฎหมายกำหนด{ads && " (ยกเว้นคุกกี้โฆษณาของ Google ตามหัวข้อ “โฆษณา” ด้านล่าง ซึ่งไม่รวมอีเมลหรือชื่อของคุณ)"}</li>
             <li>ยกเลิกการรับอีเมลแจ้งเตือนได้ทุกเมื่อโดยลบรายการที่ติดตามในหน้า &ldquo;บัญชีของฉัน&rdquo;</li>
             <li>ขอดู แก้ไข หรือลบบัญชีและข้อมูลได้ที่ {mail} หรือ<a href="/contact?type=removal">ส่งคำร้องออนไลน์</a> — ดำเนินการภายใน 30 วัน</li>
           </ul>
@@ -149,6 +151,14 @@ export default async function TermsPage() {
                   <td>ป้องกันการปลอมคำขอระหว่างเข้าสู่ระบบด้วย Google</td>
                   <td>10 นาที</td>
                 </tr>
+                {ads && (
+                  <tr>
+                    <td className="font-mono">Google (เช่น __gads, __gpi, IDE)</td>
+                    <td>โฆษณา (บุคคลที่สาม)</td>
+                    <td>Google AdSense ใช้แสดงโฆษณา จำกัดจำนวนครั้งที่เห็นโฆษณาซ้ำ และป้องกันการคลิกโกง — แบบปรับตามความสนใจเฉพาะเมื่อกด &ldquo;ยอมรับทั้งหมด&rdquo;</td>
+                    <td>ตามนโยบายของ Google (สูงสุด 13 เดือน)</td>
+                  </tr>
+                )}
                 <tr>
                   <td className="font-mono">tdc_vid</td>
                   <td>สถิติ (ขอความยินยอม)</td>
@@ -160,7 +170,27 @@ export default async function TermsPage() {
           </div>
           <ul className="mt-3 list-disc pl-6">
             <li>คุกกี้สถิติจะถูกวางเฉพาะเมื่อคุณกด &ldquo;ยอมรับทั้งหมด&rdquo; เปลี่ยนใจหรือถอนความยินยอมได้ทุกเมื่อจากลิงก์ &ldquo;ตั้งค่าคุกกี้&rdquo; ท้ายหน้า</li>
-            <li>ไม่ใช้คุกกี้โฆษณาหรือคุกกี้ของบุคคลภายนอก และไม่ส่งข้อมูลสถิติให้ผู้อื่น</li>
+            {ads ? (
+              <li id="ads">
+                <b>โฆษณา:</b> เว็บไซต์นี้แสดงโฆษณาจาก Google AdSense ผู้ให้บริการภายนอกรวมถึง Google ใช้คุกกี้เพื่อแสดงโฆษณาตามการเข้าชมเว็บไซต์นี้หรือเว็บไซต์อื่นของคุณ
+                การใช้คุกกี้โฆษณาทำให้ Google และพันธมิตรแสดงโฆษณาที่เหมาะกับคุณได้ — หากไม่กด &ldquo;ยอมรับทั้งหมด&rdquo; จะเห็นเฉพาะโฆษณาทั่วไปที่ไม่ปรับตามบุคคล
+                ปิดโฆษณาที่ปรับตามบุคคลได้ที่{" "}
+                <a href="https://adssettings.google.com" rel="noopener" target="_blank">
+                  การตั้งค่าโฆษณาของ Google
+                </a>{" "}
+                หรือ{" "}
+                <a href="https://www.aboutads.info/choices" rel="noopener" target="_blank">
+                  www.aboutads.info
+                </a>{" "}
+                · ดู{" "}
+                <a href="https://policies.google.com/technologies/partner-sites" rel="noopener" target="_blank">
+                  วิธีที่ Google ใช้ข้อมูลจากเว็บไซต์ที่ใช้บริการของ Google
+                </a>{" "}
+                · ไม่ส่งข้อมูลสถิติของเราให้ผู้อื่น และไม่แสดงโฆษณาในหน้าบัญชีสมาชิก การชำระเงิน และหลังบ้าน
+              </li>
+            ) : (
+              <li>ไม่ใช้คุกกี้โฆษณาหรือคุกกี้ของบุคคลภายนอก และไม่ส่งข้อมูลสถิติให้ผู้อื่น</li>
+            )}
             <li>
               ทุกการเข้าชมหน้าเว็บเราบันทึก หน้าที่เปิด เวลา เว็บต้นทาง ประเภทอุปกรณ์และเบราว์เซอร์ เพื่อปรับปรุงบริการและแสดงสถิติการเข้าชมรวมของแต่ละหน้า
               (ไม่แสดงข้อมูลรายบุคคล)

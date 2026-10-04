@@ -1,3 +1,4 @@
+import Ad from "@/components/Ad";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -83,6 +84,7 @@ export default async function ChangesPage({ searchParams }: Props) {
           ))}
         </nav>
 
+        <Ad page="changes" placement="content_top" />
         <h2 className="wiki-h2">{field ? CHANGE_LABELS[field] : "ล่าสุด"}</h2>
         {items.length === 0 ? (
           <p className="text-wiki-muted">ยังไม่มีรายการ — ระบบกำลังทยอยตรวจข้อมูลกับกรมพัฒนาธุรกิจการค้า</p>
@@ -126,6 +128,7 @@ export default async function ChangesPage({ searchParams }: Props) {
             DBD DataWarehouse+
           </a>
         </p>
+        <Ad page="changes" placement="content_bottom" />
       </article>
     </main>
   );

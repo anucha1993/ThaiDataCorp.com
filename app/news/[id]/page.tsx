@@ -1,3 +1,4 @@
+import Ad from "@/components/Ad";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -69,6 +70,7 @@ export default async function NewsPage({ params }: Props) {
             รายงานเนื้อหานี้
           </Link>
         </p>
+        <Ad page="news" placement="content_bottom" />
       </article>
     </main>
   );

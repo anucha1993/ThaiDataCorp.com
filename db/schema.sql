@@ -585,3 +585,16 @@ CREATE TABLE IF NOT EXISTS procurement_agency_winner (
 
 -- v28: รายงานรายเดือนนับผู้จด VAT ใหม่ตามวันที่อนุมัติ (sync-vat สร้างตารางใหม่แบบ LIKE จึงได้ index นี้ด้วย)
 ALTER TABLE juristic_vat ADD INDEX IF NOT EXISTS idx_approved (approved_date, branch_no);
+
+-- v29: รายงานรายได้ Google AdSense (ดึงทุกวันด้วยงาน adsense-report) — ad_unit '__total__' = รวมทั้งวัน
+CREATE TABLE IF NOT EXISTS adsense_report (
+  report_date DATE          NOT NULL,
+  ad_unit     VARCHAR(255)  NOT NULL,
+  earnings    DECIMAL(14,4) NOT NULL DEFAULT 0 COMMENT 'รายได้ประมาณการ (บาท)',
+  page_views  INT           NOT NULL DEFAULT 0,
+  impressions INT           NOT NULL DEFAULT 0,
+  clicks      INT           NOT NULL DEFAULT 0,
+  PRIMARY KEY (report_date, ad_unit)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('adsense-report', 1, '30 6 * * *', NULL);

@@ -2,6 +2,7 @@
  * หน้าประเภทธุรกิจ (pSEO) ใช้ร่วมกันระหว่าง /tsic/[code] และ /tsic/[code]/[province]
  * เนื้อหาสร้างจากข้อมูลจริงใน DB ทั้งหมด → แต่ละหน้ามีตัวเลข/รายชื่อเฉพาะตัว
  */
+import Ad from "@/components/Ad";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -298,6 +299,7 @@ export async function TsicView({ code, province }: { code: string; province?: st
             </section>
           </div>
         </div>
+        <Ad page="list" placement="content_bottom" />
       </article>
     </main>
   );

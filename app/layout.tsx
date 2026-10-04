@@ -6,6 +6,8 @@ import Footer from "@/components/Footer";
 import PageTracker from "@/components/PageTracker";
 import CookieConsent from "@/components/CookieConsent";
 import NavigationProgress from "@/components/NavigationProgress";
+import AdsLoader from "@/components/AdsLoader";
+import { getPublicAdsConfig } from "@/lib/ads";
 import { Suspense } from "react";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/format";
 import "./globals.css";
@@ -18,7 +20,7 @@ const sarabun = Sarabun({
   variable: "--font-sarabun",
 });
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: `${SITE_NAME} — ${SITE_TAGLINE}`,
@@ -38,13 +40,20 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
+/** meta google-adsense-account ใช้ยืนยันความเป็นเจ้าของเว็บกับ AdSense (ใส่เมื่อมี Publisher ID) */
+export async function generateMetadata(): Promise<Metadata> {
+  const ads = await getPublicAdsConfig().catch(() => null);
+  return ads ? { ...baseMetadata, other: { "google-adsense-account": ads.publisherId } } : baseMetadata;
+}
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#f8f9fa",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const ads = await getPublicAdsConfig().catch(() => null);
   return (
     <html lang="th" className={sarabun.variable}>
       <body className="flex min-h-screen flex-col">
@@ -60,8 +69,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <Suspense fallback={null}>
           <PageTracker />
           <NavigationProgress />
+          {ads && <AdsLoader config={ads} />}
         </Suspense>
-        <CookieConsent />
+        <CookieConsent ads={Boolean(ads)} />
       </body>
     </html>
   );

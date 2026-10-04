@@ -1,3 +1,4 @@
+import Ad from "@/components/Ad";
 import DataAsOfNote from "@/components/DataAsOfNote";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -196,6 +197,7 @@ export default async function CompanyPage({ params }: PageProps) {
                   <CompanyViews id={id} />
                 </Suspense>
               )}
+              <Ad page="company" placement="sidebar" />
             </div>
 
             <div className="min-w-0 lg:col-start-1 lg:row-start-1">
@@ -213,6 +215,7 @@ export default async function CompanyPage({ params }: PageProps) {
                 {!showBiz && <CompanyContact id={profile.id} contact={contact} verified={verified} />}
                 <ExternalLookup profile={profile} />
               </section>
+              <Ad page="company" placement="content_top" />
 
               {showBiz && (
                 <CompanyBusiness
@@ -336,6 +339,7 @@ export default async function CompanyPage({ params }: PageProps) {
                 {!hasFinancials && <DbdLink id={profile.id}>ดูงบการเงินที่นำส่งต่อกรมพัฒนาธุรกิจการค้า</DbdLink>}
               </section>
 
+              <Ad page="company" placement="content_bottom" />
               <section id="references" aria-labelledby="references-h">
                 <h2 id="references-h" className="wiki-h2">
                   แหล่งอ้างอิง

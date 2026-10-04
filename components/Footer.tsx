@@ -38,7 +38,9 @@ export default async function Footer() {
           <Link href="/news">ข่าวบริษัท</Link>
           <Link href="/business">บัญชีบริษัท (ลงประกาศฟรี)</Link>
           <Link href="/pricing">สมาชิก</Link>
+          <Link href="/about">เกี่ยวกับเรา</Link>
           <Link href="/terms">เงื่อนไขการใช้งาน</Link>
+          <Link href="/terms#privacy">นโยบายความเป็นส่วนตัว</Link>
           <Link href="/contact">ติดต่อเรา / แจ้งปัญหา</Link>
           <CookieSettingsLink />
           <a href="https://data.go.th" rel="noopener" target="_blank">

@@ -7,7 +7,13 @@ import { getCurrentUser } from "@/lib/auth";
 export async function GET() {
   const user = await getCurrentUser();
   const body = user
-    ? { loggedIn: true, name: user.displayName || user.email.split("@")[0], email: user.email, isAdmin: user.isAdmin }
+    ? {
+        loggedIn: true,
+        name: user.displayName || user.email.split("@")[0],
+        email: user.email,
+        isAdmin: user.isAdmin,
+        paid: Boolean(user.planExpiresAt && Date.parse(String(user.planExpiresAt).replace(" ", "T")) > Date.now()),
+      }
     : { loggedIn: false };
   return Response.json(body, { headers: { "cache-control": "private, no-store" } });
 }

@@ -60,6 +60,13 @@ export const JOBS: JobDef[] = [
     staleMinutes: 30,
   },
   {
+    key: "adsense-report",
+    label: "ดึงรายงานรายได้ Google AdSense",
+    description: "ดึงรายได้/การแสดงผล/คลิก 35 วันล่าสุดจาก AdSense (ต้องเชื่อมต่อบัญชีที่ /admin/ads ก่อน)",
+    script: "sync-adsense.ts",
+    staleMinutes: 15,
+  },
+  {
     key: "alerts",
     label: "ส่งอีเมลแจ้งเตือนสมาชิก",
     description: "สัญญาภาครัฐใหม่ของรายการที่ติดตาม + บริษัทเปิดใหม่ตามเงื่อนไข",

@@ -2,6 +2,7 @@
  * บริษัทเปิดใหม่รายเดือน (pSEO) — ใช้ร่วมกันระหว่าง /new/[ym] และ /new/[ym]/[province]
  * ตัวกรองประเภทธุรกิจและหน้าที่ 2+ ใช้ query string → noindex (canonical ชี้หน้าหลักของเดือน)
  */
+import Ad from "@/components/Ad";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -258,6 +259,7 @@ export async function NewView({ ym, province, searchParams }: { ym: string; prov
           ที่มา: กรมพัฒนาธุรกิจการค้า — ชุดข้อมูลนิติบุคคลจดทะเบียนตั้งใหม่ (data.go.th, Open Data Common) ปรับปรุงทุกวันโดย{" "}
           {SITE_NAME}
         </p>
+        <Ad page="list" placement="content_bottom" />
       </article>
     </main>
   );

@@ -3,7 +3,8 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export type Me = { loggedIn: false } | { loggedIn: true; name: string; email: string; isAdmin: boolean };
+/** paid = มีแพ็กเกจที่ซื้อ/ทดลองใช้ที่ยังไม่หมดอายุ (ใช้ซ่อนโฆษณา) */
+export type Me = { loggedIn: false } | { loggedIn: true; name: string; email: string; isAdmin: boolean; paid?: boolean };
 
 /** ใช้คำตอบร่วมกันทุก component ในหน้าเดียวกัน (Header + กล่องในเนื้อหา) — ยิง /api/me ครั้งเดียวต่อหน้า */
 let shared: { path: string; promise: Promise<Me> } | null = null;

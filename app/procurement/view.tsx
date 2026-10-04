@@ -1,4 +1,5 @@
 /** หน้าจัดอันดับผู้รับงานภาครัฐ — ใช้ร่วมกันระหว่าง /procurement และ /procurement/[province] */
+import Ad from "@/components/Ad";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -106,6 +107,7 @@ export async function ProcurementView({ province }: { province?: string }) {
           ที่มา: ระบบการจัดซื้อจัดจ้างภาครัฐ (e-GP) โดยสำนักงานพัฒนารัฐบาลดิจิทัล (data.go.th, CC-BY) — {SITE_NAME}{" "}
           นับเฉพาะสัญญาที่ผู้รับสัญญาเป็นนิติบุคคล จังหวัดหมายถึงที่ตั้งของโครงการ ไม่ใช่ที่ตั้งของบริษัท
         </p>
+        <Ad page="list" placement="content_bottom" />
       </article>
     </main>
   );

@@ -1,3 +1,4 @@
+import Ad from "@/components/Ad";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -177,6 +178,7 @@ export default async function JobPage({ params }: Props) {
             </p>
           </aside>
         </div>
+        <Ad page="jobs" placement="content_bottom" />
       </article>
     </main>
   );

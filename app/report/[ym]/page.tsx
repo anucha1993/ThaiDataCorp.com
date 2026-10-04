@@ -1,3 +1,4 @@
+import Ad from "@/components/Ad";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -102,6 +103,7 @@ export default async function ReportPage({ params }: Props) {
           <Stat label="จด VAT ใหม่ (สำนักงานใหญ่)" value={`${formatNumber(r.vatNew)} ราย`} />
         </section>
 
+        <Ad page="report" placement="content_top" />
         <section aria-labelledby="trend-h">
           <h2 id="trend-h" className="wiki-h2">
             แนวโน้มจดทะเบียนใหม่ 13 เดือน
@@ -207,6 +209,7 @@ export default async function ReportPage({ params }: Props) {
           (กรมสรรพากร) และสัญญาจัดซื้อจัดจ้าง (e-GP) — ตัวเลขอาจเปลี่ยนเล็กน้อยเมื่อหน่วยงานปรับปรุงข้อมูลย้อนหลัง อ้างอิงได้โดยระบุที่มา &ldquo;
           {SITE_NAME}&rdquo; พร้อมลิงก์มายังหน้านี้
         </p>
+        <Ad page="report" placement="content_bottom" />
       </article>
     </main>
   );
