@@ -601,3 +601,16 @@ INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('adsense-
 
 -- v30: ไม่นับสถิติการเข้าชมของสมาชิกบางคน (เช่น ทีมงานที่ทดสอบเว็บ) — ตั้งที่ /admin/members/[id]
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS no_analytics TINYINT(1) NOT NULL DEFAULT 0 AFTER suspended_by;
+
+-- v31: นับโควตา DBD Open API รายวัน (DBD จำกัด ~2,000 ครั้ง/วัน — เกินแล้วตอบ error 8888 จนเที่ยงคืน)
+CREATE TABLE IF NOT EXISTS dbd_api_usage (
+  day      DATE       NOT NULL COMMENT 'วันที่เวลาไทย',
+  used     INT        NOT NULL DEFAULT 0,
+  job_used INT        NOT NULL DEFAULT 0 COMMENT 'ส่วนที่งานเบื้องหลังใช้',
+  blocked  TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'DBD ตอบเกินโควตาแล้ว — งดถึงเที่ยงคืน',
+  PRIMARY KEY (day)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- โควตาวันละ ~2,000 ครั้ง: งานเบื้องหลังวันละครั้ง (เหลือโควตาไว้ให้หน้าเว็บดึงบริษัทที่ยังไม่มีใน DB)
+UPDATE job_schedule SET cron = '5 1 * * *', args = '--limit=900 --rate=1', next_run_at = NULL WHERE job_key = 'refresh-dbd' AND cron = '5 * * * *';
+UPDATE job_schedule SET cron = '30 2 * * *', args = '--limit=400', next_run_at = NULL WHERE job_key = 'backfill-dbd' AND cron = '15 * * * *';

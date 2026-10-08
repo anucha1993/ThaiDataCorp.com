@@ -51,6 +51,12 @@ async function main() {
     ids = rows.map((r) => r.id as string);
   }
   if (limit) ids = ids.slice(0, limit);
+  const { dbdRemaining } = await import("@/lib/dbd-quota");
+  const quota = await dbdRemaining("job");
+  if (ids.length > quota) {
+    console.log(`  (โควตา DBD ของงานเบื้องหลังวันนี้เหลือ ${quota} ครั้ง — ทำเท่าที่โควตาเหลือ)`);
+    ids = ids.slice(0, quota);
+  }
   console.log(`▶ ต้องดึง ${ids.length.toLocaleString()} ราย ที่ ${rate} req/s (~${Math.ceil(ids.length / rate / 60)} นาที)`);
 
   const log = (id: string, status: string) =>
@@ -79,6 +85,10 @@ async function main() {
       }
       consecutive = 0;
     } catch (err) {
+      if ((err as Error).name === "DbdQuotaError") {
+        console.warn(`■ ${(err as Error).message} — หยุดรอบนี้ (ทำต่อพรุ่งนี้)`);
+        break;
+      }
       errors++;
       consecutive++;
       await log(id, "error");

@@ -33,6 +33,7 @@ import "server-only";
 import { cache } from "react";
 import { normalizeProfile } from "@/lib/dbd-normalize";
 import { fetchDbdJuristic, isDbdOpenApiEnabled } from "@/lib/dbd-openapi";
+import { dbdRemaining } from "@/lib/dbd-quota";
 import { MOCK_COMPANIES } from "@/lib/mock-data";
 import {
   countJuristic,
@@ -280,7 +281,7 @@ async function findInDbOrDbd(id: string): Promise<JuristicProfile | null> {
   if (fromDb) return (await refreshFromDbdIfStale(id)) ?? fromDb;
 
   // throw ต่อเมื่อ DBD ล่ม/โดน WAF → หน้า error (ไม่ cache เป็น 404 ผิด ๆ)
-  const raw = await fetchDbdJuristic(id, { revalidate: DATA_REVALIDATE_SECONDS });
+  const raw = await fetchDbdJuristic(id, { revalidate: DATA_REVALIDATE_SECONDS, purpose: "web" });
   if (!raw) return null;
   const profile = normalizeProfile(raw);
   await upsertDbdProfile(profile).catch((e) => console.error(`[api] save DBD profile ${id} failed:`, e));
@@ -293,7 +294,9 @@ async function findInDbOrDbd(id: string): Promise<JuristicProfile | null> {
  * จำกัดความถี่ (กัน bot ไล่เปิดหลายหน้าจนโดน WAF) และถ้า DBD ผิดพลาดจะพักแล้วใช้ข้อมูลเดิมไปก่อน
  */
 const DBD_REFRESH_DAYS = 30;
-const DBD_REFRESH_PER_MINUTE = 20;
+const DBD_REFRESH_PER_MINUTE = 5;
+/** โควตาที่กันไว้ให้ "บริษัทที่ยังไม่มีใน DB" (ต้องดึงตอนเปิดหน้า) — อัปเดตข้อมูลเก่าใช้ได้เฉพาะเมื่อเหลือมากกว่านี้ */
+const DBD_WEB_RESERVE = 300;
 const DBD_ERROR_PAUSE_MS = 10 * 60_000;
 const dbdRefresh = { windowStart: 0, count: 0, pausedUntil: 0 };
 
@@ -304,8 +307,9 @@ async function refreshFromDbdIfStale(id: string): Promise<JuristicProfile | null
     if (!(await isDbdStale(id, DBD_REFRESH_DAYS))) return null;
     if (now - dbdRefresh.windowStart > 60_000) Object.assign(dbdRefresh, { windowStart: now, count: 0 });
     if (++dbdRefresh.count > DBD_REFRESH_PER_MINUTE) return null;
+    if ((await dbdRemaining("web")) <= DBD_WEB_RESERVE) return null;
 
-    const raw = await fetchDbdJuristic(id, { revalidate: DATA_REVALIDATE_SECONDS });
+    const raw = await fetchDbdJuristic(id, { revalidate: DATA_REVALIDATE_SECONDS, purpose: "web" });
     if (!raw) {
       await markDbdChecked(id);
       return null;

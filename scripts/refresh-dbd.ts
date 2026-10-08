@@ -48,6 +48,12 @@ async function main() {
       if (!seen.has(r.id)) (seen.add(r.id), ids.push(r.id as string));
     }
   }
+  const { dbdRemaining } = await import("@/lib/dbd-quota");
+  const quota = await dbdRemaining("job");
+  if (ids.length > quota) {
+    console.log(`  (โควตา DBD ของงานเบื้องหลังวันนี้เหลือ ${quota} ครั้ง — ทำเท่าที่โควตาเหลือ)`);
+    ids.length = quota;
+  }
   console.log(`▶ ตรวจกับ DBD ${ids.length.toLocaleString()} ราย ที่ ${rate} req/s (~${Math.ceil(ids.length / rate / 60)} นาที)`);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -79,6 +85,10 @@ async function main() {
       }
       consecutive = 0;
     } catch (err) {
+      if ((err as Error).name === "DbdQuotaError") {
+        console.warn(`■ ${(err as Error).message} — หยุดรอบนี้ (ทำต่อพรุ่งนี้)`);
+        break;
+      }
       errors++;
       consecutive++;
       console.warn(`  ! ${id}: ${(err as Error).message}`);

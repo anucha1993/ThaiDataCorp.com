@@ -13,8 +13,17 @@
  * ไฟล์นี้ไม่ import "server-only" เพื่อให้สคริปต์ backfill ใช้ได้ แต่ห้าม import จาก Client Component
  */
 import type { DbdOpenApiResponse, DbdRawJuristicPerson } from "@/types/company";
+import { dbdRemaining, markDbdBlocked, recordDbdCall, type DbdPurpose } from "@/lib/dbd-quota";
 
 const REQUEST_TIMEOUT_MS = 15_000;
+
+/** เกินโควตารายวันของ DBD (หรือระบบงดเรียกเองเพราะใกล้ครบโควตา) — รอเที่ยงคืน */
+export class DbdQuotaError extends Error {
+  constructor(message = "DBD Open API: เกินโควตารายวัน — ลองใหม่หลังเที่ยงคืน") {
+    super(message);
+    this.name = "DbdQuotaError";
+  }
+}
 
 export class DbdOpenApiError extends Error {
   constructor(
@@ -41,8 +50,11 @@ export function isDbdOpenApiEnabled(): boolean {
  */
 export async function fetchDbdJuristic(
   id: string,
-  { revalidate }: { revalidate?: number } = {},
+  { revalidate, purpose = "job" }: { revalidate?: number; purpose?: DbdPurpose } = {},
 ): Promise<DbdRawJuristicPerson | null> {
+  // นับโควตารายวัน — งดเรียกเมื่อครบส่วนของตัวเอง หรือ DBD ตอบเกินโควตาไปแล้ววันนี้
+  if ((await dbdRemaining(purpose).catch(() => 1)) <= 0) throw new DbdQuotaError();
+  await recordDbdCall(purpose).catch(() => {});
   const res = await fetch(`${baseUrl()}/juristic_person/${encodeURIComponent(id)}`, {
     headers: { Accept: "application/json", "User-Agent": "ThaiDataCorp/1.0 (+https://thaidatacorp.com)" },
     ...(revalidate !== undefined && { next: { revalidate } }),
@@ -60,6 +72,10 @@ export async function fetchDbdJuristic(
   }
 
   if (body.status?.code === "1004") return null;
+  if (body.status?.code === "8888") {
+    await markDbdBlocked().catch(() => {});
+    throw new DbdQuotaError(`DBD Open API 8888: ${body.status?.description ?? "rate limit"}`);
+  }
   if (body.status?.code !== "1000") {
     throw new DbdOpenApiError(`DBD Open API error ${body.status?.code}: ${body.status?.description}`);
   }
