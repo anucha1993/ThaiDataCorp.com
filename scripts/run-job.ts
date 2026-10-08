@@ -14,6 +14,7 @@ import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());
 
 const MAX_LOG = 200_000;
+const JOB_HEAP_MB = Number(process.env.JOB_HEAP_MB) || 512;
 const FLUSH_MS = 3_000;
 
 async function main() {
@@ -66,7 +67,8 @@ async function main() {
 
   // รันสคริปต์ด้วย tsx ตัวเดียวกับที่ใช้รันไฟล์นี้
   const tsxCli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
-  const child = spawn(process.execPath, [tsxCli, path.join("scripts", job.script), ...args], {
+  // จำกัด heap ของงาน — เกินแล้ว node จะหยุดพร้อมข้อความ (แทนที่จะโดนระบบโฮสต์ปิดเงียบ ๆ จนสถานะค้าง)
+  const child = spawn(process.execPath, [`--max-old-space-size=${JOB_HEAP_MB}`, tsxCli, path.join("scripts", job.script), ...args], {
     cwd: process.cwd(),
     env: process.env,
     stdio: ["ignore", "pipe", "pipe"],
@@ -91,8 +93,32 @@ async function main() {
   };
   const timer = setInterval(() => void flush().catch(() => {}), FLUSH_MS);
 
+  // ถูกสั่งหยุด (รีสตาร์ตเซิร์ฟเวอร์ / กดหยุด) → บันทึกผลก่อนออก ไม่ให้สถานะค้าง "กำลังรัน"
+  const onSignal = (sig: string) => {
+    child.kill("SIGTERM");
+    append(Buffer.from(`
+✖ ถูกหยุดด้วยสัญญาณ ${sig}
+`));
+    pool
+      .query(`UPDATE job_run SET log = ?, status = 'failed', finished_at = NOW() WHERE id = ?`, [log, runId])
+      .finally(() => process.exit(1));
+  };
+  process.once("SIGTERM", () => onSignal("SIGTERM"));
+  process.once("SIGINT", () => onSignal("SIGINT"));
+
   const code: number = await new Promise((resolve) => {
-    child.on("close", (c) => resolve(c ?? 1));
+    child.on("close", (c, signal) => {
+      if (signal) {
+        append(
+          Buffer.from(
+            `
+✖ งานถูกปิดด้วยสัญญาณ ${signal}${signal === "SIGKILL" ? " — มักเกิดจากหน่วยความจำเกินโควตาของโฮสต์ (ลดขนาดงาน หรือเพิ่ม RAM ของแพ็กเกจโฮสต์)" : ""}
+`,
+          ),
+        );
+      }
+      resolve(c ?? 1);
+    });
     child.on("error", (e) => {
       append(Buffer.from(`\n✖ start failed: ${e.message}\n`));
       resolve(1);

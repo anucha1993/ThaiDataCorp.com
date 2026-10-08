@@ -19,9 +19,10 @@ import { loadEnvConfig } from "@next/env";
 
 loadEnvConfig(process.cwd());
 
-const PAGE_SIZE = 10_000;
+const PAGE_SIZE = 5_000;
 const BATCH_SIZE = 2_000;
-const RESOURCE_CONCURRENCY = 3;
+/** ทีละไฟล์ — ประหยัดหน่วยความจำ (โฮสต์มีโควตา RAM ต่อบัญชี) */
+const RESOURCE_CONCURRENCY = 1;
 
 /** ลำดับค่าจริงในแถว เมื่อไม่มีคอลัมน์ภาษาอังกฤษ (ข้อมูลเลื่อน) */
 const SHIFTED = [

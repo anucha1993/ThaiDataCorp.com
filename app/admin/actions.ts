@@ -65,6 +65,14 @@ export async function runJobNow(formData: FormData) {
   const args = parseArgs(str(formData, "args"));
   const tsxCli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
   let started = false;
+  // มีงานอื่นรันอยู่ → ต่อคิวให้ตัวจัดคิวเริ่มเมื่อว่าง (กันหลายงานกินหน่วยความจำพร้อมกันจนถูกโฮสต์ปิด)
+  const [busy] = await dbQuery<import("mysql2").RowDataPacket[]>(
+    `SELECT job_key FROM job_run WHERE status = 'running' AND COALESCE(heartbeat_at, started_at) > NOW() - INTERVAL 10 MINUTE LIMIT 1`,
+  );
+  if (busy && !args.length) {
+    await dbQuery(`UPDATE job_schedule SET requested_at = UTC_TIMESTAMP() WHERE job_key = ?`, [job.key]);
+    redirect(`/admin/jobs?ok=queued&job=${job.key}`);
+  }
   try {
     const child = spawn(
       process.execPath,

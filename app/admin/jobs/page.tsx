@@ -12,7 +12,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const MSG: Record<string, { tone: "ok" | "error" | "info"; text: string }> = {
   "ok:saved": { tone: "ok", text: "บันทึกตารางเวลาแล้ว" },
   "ok:started": { tone: "ok", text: "เริ่มรันงานแล้ว — ดูความคืบหน้าในตารางประวัติด้านล่าง (รีเฟรชหน้า)" },
-  "ok:queued": { tone: "info", text: "เริ่มงานจากเว็บไม่ได้ จึงเข้าคิวไว้ให้ jobs:tick รันในรอบถัดไป (ภายใน 5 นาที)" },
+  "ok:queued": { tone: "info", text: "เข้าคิวแล้ว — จะเริ่มเมื่องานที่รันอยู่เสร็จ (ตัวจัดคิวตรวจทุก 5 นาที)" },
   "error:cron": { tone: "error", text: "รูปแบบ cron ไม่ถูกต้อง (ต้องมี 5 ช่อง: นาที ชั่วโมง วัน เดือน วันในสัปดาห์)" },
   "error:job": { tone: "error", text: "ไม่พบงาน" },
 };
