@@ -92,6 +92,13 @@ async function main() {
     return pool.query(`UPDATE job_run SET log = ?, heartbeat_at = NOW() WHERE id = ?`, [log, runId]);
   };
   const timer = setInterval(() => void flush().catch(() => {}), FLUSH_MS);
+  // Plesk (Passenger) ปิด process ของเว็บเมื่อว่างราว 5 นาที — และปิดงานที่ process นั้นเริ่มไว้ด้วย (SIGTERM)
+  // ระหว่างรันจึงเรียกเว็บตัวเองทุก 1 นาทีให้ process ไม่ถูกมองว่าว่าง
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://thaidatacorp.com").replace(/\/+$/, "");
+  const keepAlive =
+    process.env.NODE_ENV === "production" || process.env.JOB_KEEPALIVE === "1"
+      ? setInterval(() => void fetch(`${siteUrl}/robots.txt`, { cache: "no-store", signal: AbortSignal.timeout(10_000) }).catch(() => {}), 60_000)
+      : null;
 
   // ถูกสั่งหยุด (รีสตาร์ตเซิร์ฟเวอร์ / กดหยุด) → บันทึกผลก่อนออก ไม่ให้สถานะค้าง "กำลังรัน"
   const onSignal = (sig: string) => {
@@ -125,6 +132,7 @@ async function main() {
     });
   });
   clearInterval(timer);
+  if (keepAlive) clearInterval(keepAlive);
   await pool.query(`UPDATE job_run SET log = ?, status = ?, exit_code = ?, finished_at = NOW(), heartbeat_at = NOW() WHERE id = ?`, [
     log,
     code === 0 ? "success" : "failed",
