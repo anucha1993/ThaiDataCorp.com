@@ -95,3 +95,21 @@
   from { width: 0; }
   to { width: 92%; }
 }
+
+/* พิมพ์ (รายงานตรวจสอบคู่ค้า ฯลฯ) — เอาเฉพาะเนื้อหา */
+@media print {
+  body > header,
+  body > footer,
+  [role="dialog"],
+  aside[aria-label="โฆษณา"],
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

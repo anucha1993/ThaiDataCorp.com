@@ -10,6 +10,8 @@ import SignalsSection from "@/components/SignalsSection";
 import SameAddressSection from "@/components/SameAddressSection";
 import VatSection from "@/components/VatSection";
 import ChangeHistory from "@/components/ChangeHistory";
+import PartnerCheck, { partnerCheckItems } from "@/components/PartnerCheck";
+import RelatedCompanies from "@/components/RelatedCompanies";
 import CompetitorSection from "@/components/CompetitorSection";
 import { getCompetitorInfo } from "@/lib/competitor-repo";
 import { listCompanyChanges } from "@/lib/changes-repo";
@@ -114,7 +116,7 @@ export default async function CompanyPage({ params }: PageProps) {
   const db = getProvider() === "db";
   // ส่วนที่ช้า (สถิติผู้เข้าชม / ประวัติการเปลี่ยนแปลง / คู่แข่ง) แยกไปโหลดใน <Suspense> ด้านล่าง
   // notFound()/redirect อยู่ก่อน Suspense ทั้งหมด → ยังได้ HTTP 404/308 จริง (สำคัญต่อ SEO)
-  const [contact, bizProfile, verified, bizJobs, bizNews, dirSource, vat] = db
+  const [contact, bizProfile, verified, bizJobs, bizNews, dirSource, vat, latestChanges] = db
     ? await Promise.all([
         getJuristicContact(id).catch(() => null),
         getProfile(id).catch(() => null),
@@ -123,8 +125,9 @@ export default async function CompanyPage({ params }: PageProps) {
         listCompanyNews(id, true, 5).catch(() => []),
         directorSource(id).catch(() => null),
         getVatInfo(id).catch(() => null),
+        listCompanyChanges(id, 1).catch(() => []),
       ])
-    : [null, null, false, [], [], null, null];
+    : [null, null, false, [], [], null, null, []];
   // ผู้ดูแลระงับข้อมูลจากเจ้าของกิจการ → ไม่แสดงส่วนที่บริษัทเขียนเอง
   const showBiz = verified && !bizProfile?.hidden;
 
@@ -202,6 +205,19 @@ export default async function CompanyPage({ params }: PageProps) {
 
             <div className="min-w-0 lg:col-start-1 lg:row-start-1">
               {/* Section 1: Intro (Auto-generated) */}
+              {db && (
+                <PartnerCheck
+                  id={profile.id}
+                  items={partnerCheckItems({
+                    profile,
+                    vat,
+                    procurement: data.procurement,
+                    sameAddressTotal: data.sameAddress?.total ?? 0,
+                    latestChange: latestChanges[0] ?? null,
+                    verified,
+                  })}
+                />
+              )}
               <section id="overview" aria-label="ภาพรวม">
                 <p className="text-[0.95rem] leading-7">
                   <IntroText data={data} />
@@ -339,6 +355,11 @@ export default async function CompanyPage({ params }: PageProps) {
                 {!hasFinancials && <DbdLink id={profile.id}>ดูงบการเงินที่นำส่งต่อกรมพัฒนาธุรกิจการค้า</DbdLink>}
               </section>
 
+              {db && profile.tsic?.code && profile.address.province && profile.status === "active" && (
+                <Suspense fallback={<SkeletonSection rows={5} cols={3} label="กำลังโหลดบริษัทในธุรกิจเดียวกัน" />}>
+                  <RelatedCompanies id={profile.id} tsicCode={profile.tsic.code} tsicName={profile.tsic.description} province={profile.address.province} />
+                </Suspense>
+              )}
               <Ad page="company" placement="content_bottom" />
               <section id="references" aria-labelledby="references-h">
                 <h2 id="references-h" className="wiki-h2">

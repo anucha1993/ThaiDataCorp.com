@@ -158,6 +158,11 @@ export default async function SearchPage({ searchParams }: SearchProps) {
                 </form>
               )}
             </div>
+            {Array.isArray(sp.save) ? false : sp.save === "1" && !saved && (
+              <p role="status" className="mb-2 border border-wiki-link bg-wiki-bg px-3 py-2 text-sm">
+                เข้าสู่ระบบแล้ว — กด <b>&ldquo;🔔 บันทึกการค้นหานี้ + แจ้งเตือนรายชื่อใหม่&rdquo;</b> ด้านบนเพื่อรับอีเมลเมื่อมีบริษัทใหม่ตามเงื่อนไขนี้
+              </p>
+            )}
             {saved === "ok" && (
               <p role="status" className="mb-2 border border-green-700 bg-green-50 px-3 py-2 text-sm text-green-900">
                 บันทึกการค้นหาแล้ว — ระบบจะส่งอีเมลเมื่อมีนิติบุคคลใหม่ที่ตรงเงื่อนไข จัดการได้ที่ <Link href="/account#searches">บัญชีของฉัน</Link>

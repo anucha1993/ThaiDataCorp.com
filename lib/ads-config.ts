@@ -103,6 +103,7 @@ export function parseAdsConfig(raw: string | undefined | null): AdsConfig {
 
 /** path นี้ห้ามมีโฆษณาหรือไม่ */
 export function isExcludedPath(path: string, cfg: Pick<AdsConfig, "extraExcluded">): boolean {
+  if (/^\/company\/\d{13}\/report/.test(path)) return true;
   return [...ALWAYS_EXCLUDED, ...cfg.extraExcluded].some((p) => path === p || path.startsWith(p.endsWith("/") ? p : `${p}/`));
 }
 

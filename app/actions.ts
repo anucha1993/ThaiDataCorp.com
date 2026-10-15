@@ -168,7 +168,7 @@ export async function saveSearchQuery(formData: FormData) {
   // เก็บรูปแบบมาตรฐาน (ตัด page/ค่าที่ไม่ถูกต้องทิ้ง) กันบันทึกซ้ำต่างรูปแบบ
   const query = filtersToQuery(f);
   const back = `/search?${query}`;
-  const user = await requireUser(back);
+  const user = await requireUser(`${back}&save=1`);
   if (!query) redirect(back);
   const tsicName = f.tsic ? await getTsicName(f.tsic) : null;
   const res = await addSavedQuery(user.id, user.plan, query, describeFilters(f, tsicName));

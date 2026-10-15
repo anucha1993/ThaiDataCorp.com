@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CompanyTable from "@/components/CompanyTable";
+import LeadAlertButton from "@/components/LeadAlertButton";
 import { CompanyFields, FilterBox } from "@/components/FilterForms";
 import { getProvider } from "@/lib/api";
 import { formatNumber, inProvince, SITE_NAME, SITE_URL, toBuddhistYear, tsicUrl } from "@/lib/format";
@@ -162,6 +163,13 @@ export async function TsicView({ code, province }: { code: string; province?: st
         <p className="mt-1 mb-4 text-sm text-wiki-muted">
           จาก {SITE_NAME} · รหัส TSIC <span className="font-mono text-wiki-text">{code}</span> · {formatNumber(stats.total)} นิติบุคคล
         </p>
+        <div className="-mt-2 mb-4">
+          <LeadAlertButton
+            tsicCode={code}
+            province={province}
+            label={`แจ้งเตือนเมื่อมีบริษัทเปิดใหม่ใน${name.length > 40 ? "ธุรกิจนี้" : name}${province ? inProvince(province) : ""}`}
+          />
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start">
           <aside className="lg:sticky lg:top-4 lg:col-start-2 lg:row-start-1">

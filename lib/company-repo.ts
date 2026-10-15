@@ -240,3 +240,19 @@ export async function findSameAddress(
     companies: rows.map((r) => ({ profile: rowToProfile(r), govContracts: govMap.get(r.id) ?? 0 })),
   };
 }
+
+/** บริษัทอื่นที่ยังดำเนินกิจการ ในประเภทธุรกิจ (TSIC 5 หลัก) และจังหวัดเดียวกัน — ล่าสุดก่อน */
+export async function listRelatedCompanies(
+  id: string,
+  tsicCode: string,
+  province: string,
+  limit = 8,
+): Promise<{ rows: JuristicProfile[]; total: number }> {
+  const where = `j.tsic_code = ? AND j.province = ? AND j.id <> ? AND j.dissolved_date IS NULL`;
+  const params = [tsicCode, province, id];
+  const [rows, count] = await Promise.all([
+    listJuristicWhere(where, params, "j.register_date DESC, j.id DESC", limit),
+    dbQuery<RowDataPacket[]>(`SELECT COUNT(*) n FROM juristic j WHERE ${where}`, params),
+  ]);
+  return { rows, total: Number(count[0]?.n ?? 0) };
+}
