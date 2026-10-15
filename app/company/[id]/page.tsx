@@ -208,20 +208,6 @@ export default async function CompanyPage({ params }: PageProps) {
 
             <div className="min-w-0 lg:col-start-1 lg:row-start-1">
               {/* Section 1: Intro (Auto-generated) */}
-              {db && (
-                <PartnerCheck
-                  id={profile.id}
-                  items={partnerCheckItems({
-                    profile,
-                    vat,
-                    procurement: data.procurement,
-                    sameAddressTotal: data.sameAddress?.total ?? 0,
-                    latestChange: latestChanges[0] ?? null,
-                    verified,
-                    tisi,
-                  })}
-                />
-              )}
               <section id="overview" aria-label="ภาพรวม">
                 <p className="text-[0.95rem] leading-7">
                   <IntroText data={data} />
@@ -230,6 +216,21 @@ export default async function CompanyPage({ params }: PageProps) {
                   <p className="mt-3 text-sm leading-6">
                     <b>วัตถุประสงค์ตามที่จดทะเบียน:</b> {profile.objective}
                   </p>
+                )}
+                {/* ตรวจสอบคู่ค้าโดยย่อ — ต่อจากย่อหน้าแนะนำและวัตถุประสงค์ */}
+                {db && (
+                  <PartnerCheck
+                    id={profile.id}
+                    items={partnerCheckItems({
+                      profile,
+                      vat,
+                      procurement: data.procurement,
+                      sameAddressTotal: data.sameAddress?.total ?? 0,
+                      latestChange: latestChanges[0] ?? null,
+                      verified,
+                      tisi,
+                    })}
+                  />
                 )}
                 {/* บริษัทที่ยืนยันแล้ว: ข้อมูลติดต่ออยู่ในส่วน "เกี่ยวกับบริษัท" ต่อจากสินค้า/บริการ */}
                 {!showBiz && <CompanyContact id={profile.id} contact={contact} verified={verified} />}

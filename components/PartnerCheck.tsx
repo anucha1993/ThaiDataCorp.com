@@ -21,11 +21,6 @@ export function companyAge(registerDate: string | null, now = new Date()): { tex
 }
 
 type Tone = "ok" | "bad" | "info";
-const ICON: Record<Tone, { mark: string; cls: string }> = {
-  ok: { mark: "✔", cls: "text-green-700" },
-  bad: { mark: "✖", cls: "text-red-700" },
-  info: { mark: "•", cls: "text-wiki-muted" },
-};
 
 export interface PartnerCheckItem {
   tone: Tone;
@@ -94,11 +89,13 @@ export function PartnerCheckList({ items }: { items: PartnerCheckItem[] }) {
     <ul className="space-y-1 text-sm leading-6">
       {items.map((it) => (
         <li key={it.label} className="flex gap-2">
-          <span aria-hidden="true" className={`w-4 shrink-0 text-center font-bold ${ICON[it.tone].cls}`}>
-            {ICON[it.tone].mark}
+          <span aria-hidden="true" className="w-3 shrink-0 text-center text-wiki-muted">
+            •
           </span>
           <span>
-            <span className="text-wiki-muted">{it.label}:</span> {it.value}
+            <span className="text-wiki-muted">{it.label}:</span>{" "}
+            {/* เน้นสีเฉพาะสถานะกิจการ — ข้ออื่นเป็นข้อเท็จจริงเฉย ๆ ไม่ใช่ผ่าน/ไม่ผ่าน */}
+            <span className={it.label === "สถานะ" ? (it.tone === "bad" ? "font-bold text-red-700" : "font-bold text-green-700") : ""}>{it.value}</span>
           </span>
         </li>
       ))}
@@ -109,7 +106,7 @@ export function PartnerCheckList({ items }: { items: PartnerCheckItem[] }) {
 /** กล่อง "ตรวจสอบคู่ค้า" ด้านบนหน้าบริษัท — สรุปสิ่งที่คนมาเช็กบ่อยที่สุดไว้ที่เดียว */
 export default function PartnerCheck({ id, items }: { id: string; items: PartnerCheckItem[] }) {
   return (
-    <section aria-labelledby="partner-check-h" className="mb-5 border border-wiki-border-light bg-wiki-bg px-4 py-3">
+    <section aria-labelledby="partner-check-h" className="my-4 border border-wiki-border-light bg-wiki-bg px-4 py-3">
       <h2 id="partner-check-h" className="mb-1.5 font-bold">
         ตรวจสอบคู่ค้าโดยย่อ
       </h2>
