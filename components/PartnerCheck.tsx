@@ -91,42 +91,37 @@ export function partnerCheckItems(p: {
 
 export function PartnerCheckList({ items }: { items: PartnerCheckItem[] }) {
   return (
-    <dl className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+    <ul className="space-y-1 text-sm leading-6">
       {items.map((it) => (
-        <div key={it.label} className="flex gap-2">
+        <li key={it.label} className="flex gap-2">
           <span aria-hidden="true" className={`w-4 shrink-0 text-center font-bold ${ICON[it.tone].cls}`}>
             {ICON[it.tone].mark}
           </span>
-          <dt className="w-28 shrink-0 text-wiki-muted">{it.label}</dt>
-          <dd className="min-w-0">{it.value}</dd>
-        </div>
+          <span>
+            <span className="text-wiki-muted">{it.label}:</span> {it.value}
+          </span>
+        </li>
       ))}
-    </dl>
+    </ul>
   );
 }
 
 /** กล่อง "ตรวจสอบคู่ค้า" ด้านบนหน้าบริษัท — สรุปสิ่งที่คนมาเช็กบ่อยที่สุดไว้ที่เดียว */
 export default function PartnerCheck({ id, items }: { id: string; items: PartnerCheckItem[] }) {
   return (
-    <section aria-labelledby="partner-check-h" className="mb-5 border border-wiki-border bg-wiki-bg px-4 py-3">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <h2 id="partner-check-h" className="font-bold">
-          ตรวจสอบคู่ค้าโดยย่อ
-        </h2>
-        <span className="text-xs text-wiki-muted">ข้อเท็จจริงจากแหล่งข้อมูลทางการ — ใช้ประกอบการพิจารณา</span>
-      </div>
+    <section aria-labelledby="partner-check-h" className="mb-5 border border-wiki-border-light bg-wiki-bg px-4 py-3">
+      <h2 id="partner-check-h" className="mb-1.5 font-bold">
+        ตรวจสอบคู่ค้าโดยย่อ
+      </h2>
       <PartnerCheckList items={items} />
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-        <Link
-          href={`/company/${id}/report`}
-          rel="nofollow"
-          className="border border-wiki-link bg-wiki-link px-3 py-1 font-bold text-white! hover:no-underline hover:opacity-90"
-        >
-          🖨 รายงานตรวจสอบคู่ค้า (พิมพ์ / PDF)
+      <p className="mt-2 flex flex-wrap items-center gap-x-1 border-t border-wiki-border-light pt-2 text-xs text-wiki-muted">
+        <span>ข้อเท็จจริงจากแหล่งข้อมูลทางการ ใช้ประกอบการพิจารณา ·</span>
+        <Link href={`/company/${id}/report`} rel="nofollow">
+          พิมพ์รายงานตรวจสอบ (PDF)
         </Link>
-        <WatchButton kind="company" target={id} back={`/company/${id}`} label="แจ้งเตือนเมื่อบริษัทนี้เปลี่ยนแปลง" />
-        <span className="text-xs text-wiki-muted">สมาชิกใช้ฟรี</span>
-      </div>
+        <span>·</span>
+        <WatchButton kind="company" target={id} back={`/company/${id}`} label="ติดตามการเปลี่ยนแปลง" variant="link" />
+      </p>
     </section>
   );
 }
