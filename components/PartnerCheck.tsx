@@ -3,6 +3,7 @@ import WatchButton from "@/components/WatchButton";
 import { CHANGE_LABELS, type JuristicChange } from "@/lib/changes-repo";
 import { formatBaht, formatNumber, formatThaiDate } from "@/lib/format";
 import type { VatInfo } from "@/lib/vat-repo";
+import type { TisiInfo } from "@/lib/tisi-repo";
 import type { JuristicProfile, ProcurementSummary } from "@/types/company";
 
 /** อายุบริษัทจากวันจดทะเบียน เช่น "3 ปี 2 เดือน" */
@@ -40,6 +41,7 @@ export function partnerCheckItems(p: {
   sameAddressTotal: number;
   latestChange: JuristicChange | null;
   verified: boolean;
+  tisi?: TisiInfo | null;
 }): PartnerCheckItem[] {
   const { profile } = p;
   const active = profile.status === "active";
@@ -61,6 +63,10 @@ export function partnerCheckItems(p: {
         ? `จดทะเบียน VAT${p.vat.since ? ` ตั้งแต่ ${formatThaiDate(p.vat.since)}` : ""}${p.vat.totalBranches > 1 ? ` · ${formatNumber(p.vat.totalBranches)} สถานประกอบการ` : ""}`
         : "ไม่พบในทะเบียน VAT",
     });
+  }
+  // มอก. แสดงเฉพาะเมื่อมี (กิจการที่ไม่ได้ผลิตสินค้าควบคุมไม่ต้องมี มอก. — การไม่มีจึงไม่มีความหมาย)
+  if (p.tisi?.total) {
+    items.push({ tone: "ok", label: "ใบอนุญาต มอก.", value: `${formatNumber(p.tisi.total)} ฉบับ` });
   }
   items.push({
     tone: p.procurement ? "ok" : "info",

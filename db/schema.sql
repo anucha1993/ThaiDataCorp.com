@@ -614,3 +614,24 @@ CREATE TABLE IF NOT EXISTS dbd_api_usage (
 -- โควตาวันละ ~2,000 ครั้ง: งานเบื้องหลังวันละครั้ง (เหลือโควตาไว้ให้หน้าเว็บดึงบริษัทที่ยังไม่มีใน DB)
 UPDATE job_schedule SET cron = '5 1 * * *', args = '--limit=900 --rate=1', next_run_at = NULL WHERE job_key = 'refresh-dbd' AND cron = '5 * * * *';
 UPDATE job_schedule SET cron = '30 2 * * *', args = '--limit=400', next_run_at = NULL WHERE job_key = 'backfill-dbd' AND cron = '15 * * * *';
+
+-- v32: ใบอนุญาต มอก. (สมอ., CC-BY) — เฉพาะนิติบุคคล · sync-tisi โหลดทั้งชุดลงตารางใหม่แล้วสลับชื่อ
+CREATE TABLE IF NOT EXISTS juristic_tisi (
+  license_no      VARCHAR(64)   NOT NULL,
+  tax_id          CHAR(13)      NOT NULL,
+  issued_date     DATE          NULL,
+  license_type    VARCHAR(32)   NULL COMMENT 'ทำ / แสดง / นำเข้า',
+  tis_no          VARCHAR(32)   NULL COMMENT 'เลข มอก. เช่น 1005-2564',
+  tis_name        VARCHAR(500)  NULL,
+  product_group   VARCHAR(64)   NULL,
+  factory_name    VARCHAR(255)  NULL,
+  factory_reg     VARCHAR(64)   NULL,
+  factory_address VARCHAR(600)  NULL,
+  province        VARCHAR(64)   NULL,
+  lat             DECIMAL(9,6)  NULL,
+  lon             DECIMAL(9,6)  NULL,
+  PRIMARY KEY (license_no),
+  KEY idx_tax (tax_id, issued_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('sync-tisi', 1, '30 5 16 * *', NULL);

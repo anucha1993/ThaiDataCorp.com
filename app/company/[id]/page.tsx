@@ -9,6 +9,8 @@ import ProcurementSection from "@/components/ProcurementSection";
 import SignalsSection from "@/components/SignalsSection";
 import SameAddressSection from "@/components/SameAddressSection";
 import VatSection from "@/components/VatSection";
+import TisiSection from "@/components/TisiSection";
+import { getTisiInfo } from "@/lib/tisi-repo";
 import ChangeHistory from "@/components/ChangeHistory";
 import PartnerCheck, { partnerCheckItems } from "@/components/PartnerCheck";
 import RelatedCompanies from "@/components/RelatedCompanies";
@@ -116,7 +118,7 @@ export default async function CompanyPage({ params }: PageProps) {
   const db = getProvider() === "db";
   // ส่วนที่ช้า (สถิติผู้เข้าชม / ประวัติการเปลี่ยนแปลง / คู่แข่ง) แยกไปโหลดใน <Suspense> ด้านล่าง
   // notFound()/redirect อยู่ก่อน Suspense ทั้งหมด → ยังได้ HTTP 404/308 จริง (สำคัญต่อ SEO)
-  const [contact, bizProfile, verified, bizJobs, bizNews, dirSource, vat, latestChanges] = db
+  const [contact, bizProfile, verified, bizJobs, bizNews, dirSource, vat, latestChanges, tisi] = db
     ? await Promise.all([
         getJuristicContact(id).catch(() => null),
         getProfile(id).catch(() => null),
@@ -126,8 +128,9 @@ export default async function CompanyPage({ params }: PageProps) {
         directorSource(id).catch(() => null),
         getVatInfo(id).catch(() => null),
         listCompanyChanges(id, 1).catch(() => []),
+        getTisiInfo(id).catch(() => null),
       ])
-    : [null, null, false, [], [], null, null, []];
+    : [null, null, false, [], [], null, null, [], null];
   // ผู้ดูแลระงับข้อมูลจากเจ้าของกิจการ → ไม่แสดงส่วนที่บริษัทเขียนเอง
   const showBiz = verified && !bizProfile?.hidden;
 
@@ -215,6 +218,7 @@ export default async function CompanyPage({ params }: PageProps) {
                     sameAddressTotal: data.sameAddress?.total ?? 0,
                     latestChange: latestChanges[0] ?? null,
                     verified,
+                    tisi,
                   })}
                 />
               )}
@@ -327,6 +331,7 @@ export default async function CompanyPage({ params }: PageProps) {
                 </Suspense>
               )}
               {vat && <VatSection vat={vat} />}
+              {tisi && <TisiSection tisi={tisi} />}
               {data.procurement && (
                 <ProcurementSection
                   data={data.procurement}

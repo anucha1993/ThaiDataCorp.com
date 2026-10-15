@@ -10,6 +10,8 @@ import { isVerifiedCompany } from "@/lib/business";
 import { CHANGE_LABELS, listCompanyChanges } from "@/lib/changes-repo";
 import { formatBaht, formatJuristicId, formatNumber, formatThaiDate, SITE_NAME, SITE_URL } from "@/lib/format";
 import { getVatInfo } from "@/lib/vat-repo";
+import { getTisiInfo } from "@/lib/tisi-repo";
+import TisiSection from "@/components/TisiSection";
 
 export const metadata: Metadata = { title: "รายงานตรวจสอบคู่ค้า", robots: { index: false, follow: false } };
 
@@ -25,10 +27,11 @@ export default async function PartnerReportPage({ params }: Props) {
   const user = await requireUser(`/company/${id}/report`);
   const data = await getCompany(id);
   if (!data) notFound();
-  const [vat, changes, verified] = await Promise.all([
+  const [vat, changes, verified, tisi] = await Promise.all([
     getVatInfo(id).catch(() => null),
     listCompanyChanges(id, 30).catch(() => []),
     isVerifiedCompany(id).catch(() => false),
+    getTisiInfo(id).catch(() => null),
   ]);
   const { profile, directors, procurement, sameAddress } = data;
   const items = partnerCheckItems({
@@ -38,6 +41,7 @@ export default async function PartnerReportPage({ params }: Props) {
     sameAddressTotal: sameAddress?.total ?? 0,
     latestChange: changes[0] ?? null,
     verified,
+    tisi,
   });
   const now = new Date().toLocaleString("th-TH", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Bangkok" });
   const asOf = profile.dataAsOf
@@ -153,6 +157,8 @@ export default async function PartnerReportPage({ params }: Props) {
           </>
         )}
 
+        {tisi && <TisiSection tisi={tisi} compact />}
+
         <h2 className={h2}>งานภาครัฐ (e-GP)</h2>
         {procurement ? (
           <>
@@ -217,7 +223,7 @@ export default async function PartnerReportPage({ params }: Props) {
 
         <footer className="mt-8 border-t border-wiki-border pt-3 text-xs leading-5 text-wiki-muted">
           <p>
-            แหล่งข้อมูล: กรมพัฒนาธุรกิจการค้า (data.go.th / DBD Open API), กรมสรรพากร (ทะเบียนภาษีมูลค่าเพิ่ม), ระบบการจัดซื้อจัดจ้างภาครัฐ (e-GP)
+            แหล่งข้อมูล: กรมพัฒนาธุรกิจการค้า (data.go.th / DBD Open API), กรมสรรพากร (ทะเบียนภาษีมูลค่าเพิ่ม), สมอ. (ใบอนุญาต มอก.), ระบบการจัดซื้อจัดจ้างภาครัฐ (e-GP)
             — รวบรวมโดย {SITE_NAME} ({SITE_URL}/company/{profile.id})
           </p>
           <p className="mt-1">

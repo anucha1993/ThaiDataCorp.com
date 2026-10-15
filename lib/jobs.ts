@@ -60,6 +60,13 @@ export const JOBS: JobDef[] = [
     staleMinutes: 30,
   },
   {
+    key: "sync-tisi",
+    label: "Sync ใบอนุญาต มอก. (สมอ.)",
+    description: "ดึงรายชื่อผู้ได้รับใบอนุญาต มอก. (ไฟล์รวม + รายหมวดสินค้าล่าสุด) แล้วแทนที่ทั้งชุด — เดือนละครั้ง",
+    script: "sync-tisi.ts",
+    staleMinutes: 20,
+  },
+  {
     key: "adsense-report",
     label: "ดึงรายงานรายได้ Google AdSense",
     description: "ดึงรายได้/การแสดงผล/คลิก 35 วันล่าสุดจาก AdSense (ต้องเชื่อมต่อบัญชีที่ /admin/ads ก่อน)",

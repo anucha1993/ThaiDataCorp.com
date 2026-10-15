@@ -28,6 +28,8 @@ export interface SearchFilters {
   gov?: boolean;
   /** จดทะเบียนภาษีมูลค่าเพิ่ม (กรมสรรพากร) */
   vat?: boolean;
+  /** ได้รับใบอนุญาต มอก. (สมอ.) */
+  tisi?: boolean;
   sort: SortKey;
 }
 
@@ -57,13 +59,14 @@ export function parseFilters(sp: Params): SearchFilters {
     capMax: money(one(sp.cap_max)),
     gov: one(sp.gov) === "1",
     vat: one(sp.vat) === "1",
+    tisi: one(sp.tisi) === "1",
     sort: sort && sort in SORTS ? (sort as SortKey) : "new",
   };
 }
 
 /** ใช้ตัวกรองขั้นสูงอยู่หรือไม่ (นอกจากชื่อ) */
 export function hasAdvanced(f: SearchFilters): boolean {
-  return Boolean(f.tsic || f.province || f.type || f.status || f.from || f.to || f.capMin != null || f.capMax != null || f.gov || f.vat || f.sort !== "new");
+  return Boolean(f.tsic || f.province || f.type || f.status || f.from || f.to || f.capMin != null || f.capMax != null || f.gov || f.vat || f.tisi || f.sort !== "new");
 }
 
 /** แปลงตัวกรองกลับเป็น query string (สำหรับลิงก์หน้าถัดไป / CSV) */
@@ -80,6 +83,7 @@ export function filtersToQuery(f: SearchFilters, extra: Record<string, string> =
   if (f.capMax != null) q.set("cap_max", String(f.capMax));
   if (f.gov) q.set("gov", "1");
   if (f.vat) q.set("vat", "1");
+  if (f.tisi) q.set("tisi", "1");
   if (f.sort !== "new") q.set("sort", f.sort);
   for (const [k, v] of Object.entries(extra)) q.set(k, v);
   return q.toString();
@@ -109,6 +113,7 @@ export function buildWhere(f: SearchFilters): { where: string; params: unknown[]
   if (f.capMax != null) (where.push("j.register_capital <= ?"), params.push(f.capMax));
   if (f.gov) where.push("EXISTS (SELECT 1 FROM procurement_summary ps WHERE ps.winner_id = j.id)");
   if (f.vat) where.push("EXISTS (SELECT 1 FROM juristic_vat jv WHERE jv.tax_id = j.id)");
+  if (f.tisi) where.push("EXISTS (SELECT 1 FROM juristic_tisi jt WHERE jt.tax_id = j.id)");
   return { where: where.join(" AND "), params };
 }
 
@@ -126,6 +131,7 @@ export function describeFilters(f: SearchFilters, tsicName?: string | null): str
     f.capMin != null && `ทุน ≥ ${n(f.capMin)}`,
     f.capMax != null && `ทุน ≤ ${n(f.capMax)}`,
     f.vat && "จด VAT",
+    f.tisi && "ได้ มอก.",
     f.gov && "เคยได้งานภาครัฐ",
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "ทุกนิติบุคคล";
