@@ -52,9 +52,28 @@ export async function saveAdsConfig(formData: FormData) {
     adsTxtExtra: s("adsTxtExtra").slice(0, 4000),
   };
   await setInternalSettings({ ads_config: JSON.stringify(cfg) });
+  await writeAdsTxt(cfg).catch((e) => console.error("[ads] write ads.txt failed:", e));
   // หน้าเว็บเป็น ISR → สร้างใหม่ทั้งเว็บให้โฆษณา/meta/นโยบายเปลี่ยนตามทันที
   revalidatePath("/", "layout");
   redirect("/admin/ads?ok=saved");
+}
+
+/**
+ * ads.txt เป็นไฟล์จริงใน public/ — nginx/Passenger ส่งไฟล์ได้เองแม้แอป Node ปิดอยู่ (เช่น ระหว่าง deploy)
+ * ถ้าเป็น route ของแอป crawler ของ AdSense ที่มาตรงช่วง deploy จะเจอ "ไม่พบ" (เคยเกิดแล้ว)
+ */
+async function writeAdsTxt(cfg: AdsConfig): Promise<void> {
+  const { writeFile } = await import("node:fs/promises");
+  const path = await import("node:path");
+  const lines = [
+    ...(cfg.publisherId ? [`google.com, ${cfg.publisherId.replace(/^ca-/, "")}, DIRECT, f08c47fec0942fa0`] : []),
+    ...cfg.adsTxtExtra
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("<")),
+  ];
+  const body = lines.length ? `${lines.join("\n")}\n` : "# no authorized sellers yet\n";
+  await writeFile(path.join(process.cwd(), "public", "ads.txt"), body, "utf8");
 }
 
 export async function disconnectAdsense() {

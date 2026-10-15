@@ -103,8 +103,15 @@ export function PartnerCheckList({ items }: { items: PartnerCheckItem[] }) {
   );
 }
 
-/** กล่อง "ตรวจสอบคู่ค้า" ด้านบนหน้าบริษัท — สรุปสิ่งที่คนมาเช็กบ่อยที่สุดไว้ที่เดียว */
-export default function PartnerCheck({ id, items }: { id: string; items: PartnerCheckItem[] }) {
+/** ข้อที่หน้าบริษัทแสดงอยู่แล้ว (กล่องข้อมูลด้านขวา / ย่อหน้าแนะนำ) — ไม่ต้องซ้ำในกล่องตรวจสอบคู่ค้าบนหน้าเว็บ */
+const SHOWN_ELSEWHERE = new Set(["สถานะ", "ทุนจดทะเบียน", "ภาษีมูลค่าเพิ่ม", "งานภาครัฐ"]);
+
+/**
+ * กล่อง "ตรวจสอบคู่ค้า" บนหน้าบริษัท — เฉพาะข้อเท็จจริงที่ไม่มีในส่วนอื่นของหน้า
+ * (รายงานสำหรับพิมพ์ใช้รายการครบทุกข้อ เพราะไม่มีกล่องข้อมูลด้านขวา)
+ */
+export default function PartnerCheck({ id, items: all }: { id: string; items: PartnerCheckItem[] }) {
+  const items = all.filter((it) => !SHOWN_ELSEWHERE.has(it.label));
   return (
     <section aria-labelledby="partner-check-h" className="my-4 border border-wiki-border-light bg-wiki-bg px-4 py-3">
       <h2 id="partner-check-h" className="mb-1.5 font-bold">
