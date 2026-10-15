@@ -4,11 +4,10 @@
  *   Plesk → Scheduled Tasks → Fetch a URL ทุก 5 นาที:
  *   https://thaidatacorp.com/api/cron/tick?key=<CRON_SECRET>
  *
- * เริ่ม scripts/jobs-tick.ts แบบแยก process (ไม่รอให้จบ) — ทำงานเหมือน `npm run jobs:tick`
+ * รันตัวจัดคิว (lib/jobs-tick.ts) ใน process ของเว็บ — ทำงานเหมือน `npm run jobs:tick`
  */
-import { spawn } from "node:child_process";
 import { timingSafeEqual } from "node:crypto";
-import path from "node:path";
+import { runJobsTick } from "@/lib/jobs-tick";
 
 export const dynamic = "force-dynamic";
 
@@ -25,19 +24,11 @@ export async function GET(request: Request) {
     return Response.json({ ok: false }, { status: 404 });
   }
   try {
-    const tsxCli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
-    const child = spawn(process.execPath, [tsxCli, path.join("scripts", "jobs-tick.ts")], {
-      cwd: process.cwd(),
-      env: process.env,
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true,
-    });
-    child.on("error", (e) => console.error("[cron] tick spawn error:", e));
-    child.unref();
-    return Response.json({ ok: true, pid: child.pid ?? null }, { headers: { "Cache-Control": "no-store" } });
+    // รันตัวจัดคิวใน process ของเว็บเลย (ไม่แตก process ซ้อน) — งานที่เริ่มจากตรงนี้ไม่ถูกโฮสต์ปิดเหมือนปุ่ม "รันตอนนี้"
+    const started = await runJobsTick();
+    return Response.json({ ok: true, started }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
-    console.error("[cron] tick failed to start:", e);
-    return Response.json({ ok: false, error: "spawn" }, { status: 500 });
+    console.error("[cron] tick failed:", e);
+    return Response.json({ ok: false, error: "tick" }, { status: 500 });
   }
 }

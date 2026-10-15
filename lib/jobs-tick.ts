@@ -1,0 +1,88 @@
+/**
+ * ตัวจัดตารางงาน (ใช้ร่วมกันระหว่าง /api/cron/tick และ scripts/jobs-tick.ts) — ไม่ import "server-only"
+ *
+ *   1) ปิดรอบที่ค้าง — process ที่ไม่มี heartbeat เกินเวลา → "ค้าง" พร้อมเหตุผล
+ *   2) เริ่มงานที่ถึงเวลา (next_run_at) หรือถูกกด "รันตอนนี้" (requested_at) — ทีละ 1 งาน
+ *      ถ้ามีงานรันอยู่ งานที่ถึงเวลาจะรอรอบ tick ถัดไป (กันหลายงานกินหน่วยความจำพร้อมกัน)
+ *
+ * บน Plesk ให้เรียกผ่าน URL (/api/cron/tick) ซึ่งรันฟังก์ชันนี้ใน process ของเว็บโดยตรง แล้วเริ่มงานจาก process เว็บ
+ * แบบเดียวกับปุ่ม "รันตอนนี้" — การแตก process ซ้อนอีกชั้น (jobs-tick แยก) ทำให้งานถูกโฮสต์ปิดหลังเริ่มราว 10 วินาที
+ */
+import { spawn } from "node:child_process";
+import path from "node:path";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import { dbQuery } from "@/lib/db";
+import { JOBS, jobByKey, nextRunUtc } from "@/lib/jobs";
+
+/** งานที่รันพร้อมกันได้สูงสุด */
+const MAX_CONCURRENT = 1;
+
+export async function runJobsTick(log: (msg: string) => void = () => {}): Promise<string[]> {
+  const started: string[] = [];
+
+  // 1) รอบที่ process หายไปแล้ว (ไม่มี heartbeat เกิน staleMinutes ของงานนั้น) → ค้าง
+  for (const job of JOBS) {
+    const res = await dbQuery<ResultSetHeader>(
+      `UPDATE job_run SET status = 'stale', finished_at = NOW(),
+         log = CONCAT(COALESCE(log, ''), '\n✖ process หยุดกะทันหันโดยไม่ได้บันทึกผล (heartbeat ล่าสุด ', COALESCE(heartbeat_at, started_at),
+           ') — มักเกิดจากหน่วยความจำเกินโควตาของโฮสต์ หรือเซิร์ฟเวอร์รีสตาร์ต · กด "รันตอนนี้" เพื่อรันใหม่')
+       WHERE job_key = ? AND status = 'running' AND COALESCE(heartbeat_at, started_at) < NOW() - INTERVAL ? MINUTE`,
+      [job.key, job.staleMinutes],
+    );
+    if (res.affectedRows) log(`⚠ ${job.key}: ปิดรอบที่ค้าง ${res.affectedRows} รอบ`);
+  }
+
+  const [busy] = await dbQuery<RowDataPacket[]>(`SELECT COUNT(*) n FROM job_run WHERE status = 'running'`);
+  let slots = MAX_CONCURRENT - Number(busy?.n ?? 0);
+
+  // next_run_at / requested_at เก็บเป็นเวลา UTC เสมอ เทียบกับ UTC_TIMESTAMP()
+  const rows = await dbQuery<RowDataPacket[]>(
+    `SELECT job_key, enabled, cron, next_run_at, requested_at,
+       (enabled = 1 AND next_run_at IS NOT NULL AND next_run_at <= UTC_TIMESTAMP()) due,
+       (requested_at IS NOT NULL) requested
+     FROM job_schedule
+     ORDER BY requested_at IS NULL, COALESCE(requested_at, next_run_at)`,
+  );
+
+  const tsxCli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
+  for (const r of rows) {
+    const job = jobByKey(r.job_key);
+    if (!job) continue;
+
+    // ตั้ง next_run_at ให้งานที่เปิดใช้แต่ยังไม่มีเวลา (เช่น เพิ่งเปิด)
+    if (r.enabled && !r.next_run_at) {
+      await dbQuery(`UPDATE job_schedule SET next_run_at = ? WHERE job_key = ?`, [await nextRunUtc(r.cron), r.job_key]);
+      continue;
+    }
+    if (!Number(r.due) && !Number(r.requested)) continue;
+    if (slots <= 0) {
+      log(`… ${job.key} ถึงเวลาแล้ว แต่มีงานรันอยู่ — รอรอบถัดไป`);
+      continue;
+    }
+
+    const trigger = Number(r.requested) ? "manual" : "schedule";
+    await dbQuery(
+      `UPDATE job_schedule SET requested_at = NULL, next_run_at = IF(enabled = 1 AND ? = 1, ?, next_run_at) WHERE job_key = ?`,
+      [Number(r.due), await nextRunUtc(r.cron), r.job_key],
+    );
+    const child = spawn(process.execPath, [tsxCli, path.join("scripts", "run-job.ts"), job.key, `--trigger=${trigger}`], {
+      cwd: process.cwd(),
+      env: process.env,
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    child.on("error", (e) => console.error(`[jobs] ${job.key} spawn error:`, e));
+    child.unref();
+    slots--;
+    started.push(job.key);
+    log(`▶ เริ่ม ${job.key} (${trigger}) pid=${child.pid}`);
+  }
+
+  // บันทึกเวลาที่ tick ทำงานล่าสุด (หน้า /admin ใช้ตรวจว่า Scheduled Task ยังทำงานอยู่)
+  await dbQuery(
+    `INSERT INTO app_setting (k, v) VALUES ('jobs_last_tick', DATE_FORMAT(UTC_TIMESTAMP(), '%Y-%m-%d %H:%i:%s'))
+     ON DUPLICATE KEY UPDATE v = VALUES(v)`,
+  );
+  return started;
+}
