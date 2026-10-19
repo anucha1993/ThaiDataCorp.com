@@ -125,6 +125,8 @@ export default function PartnerCheck({ id, items: all }: { id: string; items: Pa
         </Link>
         <span>·</span>
         <WatchButton kind="company" target={id} back={`/company/${id}`} label="ติดตามการเปลี่ยนแปลง" variant="link" />
+        <span>·</span>
+        <Link href="/guide/partner-check">วิธีตรวจสอบคู่ค้า</Link>
       </p>
     </section>
   );

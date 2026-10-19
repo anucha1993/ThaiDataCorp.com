@@ -20,6 +20,7 @@ export const AD_PAGE_TYPES = {
   report: "ดัชนีธุรกิจรายเดือน",
   jobs: "ประกาศงาน",
   news: "ข่าวบริษัท",
+  guide: "คู่มือ / บทความ",
 } as const;
 export type AdPageType = keyof typeof AD_PAGE_TYPES;
 
@@ -64,7 +65,7 @@ export const DEFAULT_ADS_CONFIG: AdsConfig = {
   autoAds: true,
   hideForPaid: true,
   slots: { content_top: "", content_bottom: "", sidebar: "" },
-  pages: { home: false, company: true, list: true, changes: true, report: true, jobs: true, news: true },
+  pages: { home: false, company: true, list: true, changes: true, report: true, jobs: true, news: true, guide: true },
   extraExcluded: [],
   adsTxtExtra: "",
 };

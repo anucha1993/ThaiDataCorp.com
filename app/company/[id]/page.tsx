@@ -14,6 +14,7 @@ import { getTisiInfo } from "@/lib/tisi-repo";
 import ChangeHistory from "@/components/ChangeHistory";
 import PartnerCheck, { partnerCheckItems } from "@/components/PartnerCheck";
 import RelatedCompanies from "@/components/RelatedCompanies";
+import CompanyInsights from "@/components/CompanyInsights";
 import CompetitorSection from "@/components/CompetitorSection";
 import { getCompetitorInfo } from "@/lib/competitor-repo";
 import { listCompanyChanges } from "@/lib/changes-repo";
@@ -236,6 +237,11 @@ export default async function CompanyPage({ params }: PageProps) {
                 {!showBiz && <CompanyContact id={profile.id} contact={contact} verified={verified} />}
                 <ExternalLookup profile={profile} />
               </section>
+              {db && profile.tsic && (
+                <Suspense fallback={<SkeletonSection rows={4} cols={1} label="กำลังวิเคราะห์เทียบกับธุรกิจเดียวกัน" />}>
+                  <CompanyInsights profile={profile} />
+                </Suspense>
+              )}
               <Ad page="company" placement="content_top" />
 
               {showBiz && (

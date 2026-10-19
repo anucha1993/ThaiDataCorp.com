@@ -7,6 +7,7 @@ import { listNewSitemapPaths } from "@/lib/new-repo";
 import { listTsicSitemapPaths } from "@/lib/tsic-repo";
 import { listLiveJobIds, listPublishedNewsIds } from "@/lib/business";
 import { listReportMonths } from "@/lib/report-repo";
+import { GUIDES } from "@/lib/guides";
 
 export const revalidate = 86400;
 
@@ -41,6 +42,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/terms",
     "/contact",
     "/about",
+    "/guide",
+    ...GUIDES.map((g) => `/guide/${g.slug}`),
     "/changes",
     "/report",
     ...reports.map((m) => `/report/${m.ym}`),
