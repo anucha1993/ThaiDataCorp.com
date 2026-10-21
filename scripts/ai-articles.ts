@@ -57,7 +57,8 @@ async function main() {
     }
     const [existing] = await pool.query<Row[]>(`SELECT slug, title, kind FROM ai_article WHERE status <> 'rejected'`);
     const titles = [...GUIDES.map((g) => g.title), ...existing.map((r) => r.title as string)];
-    const slugs = new Set([...GUIDES.map((g) => g.slug), ...existing.map((r) => r.slug as string)]);
+    // "stats" = หน้ารวมบทความสถิติ (/guide/stats) ห้ามใช้เป็น slug
+    const slugs = new Set(["stats", ...GUIDES.map((g) => g.slug), ...existing.map((r) => r.slug as string)]);
 
     // หัวข้อจากคิวก่อน (ผู้ดูแลสั่งเอง) — ถ้าไม่มี: โหมด data เขียนสถิติจากข้อมูลจริง, mixed สลับกับความรู้ทั่วไป
     const [[queued]] = await pool.query<Row[]>(`SELECT id, topic FROM ai_topic WHERE status = 'queued' ORDER BY id LIMIT 1`);

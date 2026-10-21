@@ -543,3 +543,72 @@ export async function getAiArticle(id: number): Promise<AiArticle | null> {
   const rows = await dbQuery<RowDataPacket[]>(`SELECT * FROM ai_article WHERE id = ?`, [id]);
   return rows[0] ? toArticle(rows[0]) : null;
 }
+
+/* ------------------------------------------------------------------ บทความสถิติ (หน้า /guide/stats และลิงก์ข้ามหน้า) */
+
+export interface DataArticleLink {
+  slug: string;
+  title: string;
+  description: string;
+  tsic: string;
+  /** null = ทั่วประเทศ */
+  province: string | null;
+  publishedAt: string | null;
+}
+
+/** data_key = tsic:CODE หรือ tsic:CODE:จังหวัด */
+const DATA_COLS = `slug, title, description, published_at,
+  SUBSTRING_INDEX(SUBSTRING_INDEX(data_key, ':', 2), ':', -1) tsic,
+  IF(LENGTH(data_key) - LENGTH(REPLACE(data_key, ':', '')) >= 2, SUBSTRING(data_key, LENGTH(SUBSTRING_INDEX(data_key, ':', 2)) + 2), NULL) province`;
+const toLink = (r: RowDataPacket): DataArticleLink => ({
+  slug: r.slug,
+  title: r.title,
+  description: r.description,
+  tsic: String(r.tsic),
+  province: r.province ?? null,
+  publishedAt: r.published_at ? dt(r.published_at) : null,
+});
+
+/** รายการบทความสถิติที่เผยแพร่แล้ว — กรองตามจังหวัด ("all" = ทั่วประเทศเท่านั้น) / คำค้น + แบ่งหน้า */
+export async function listDataArticles(opts: { q?: string; province?: string; page?: number; perPage?: number }) {
+  const perPage = opts.perPage ?? 30;
+  const page = Math.max(1, opts.page ?? 1);
+  const where = [`status = 'published'`, `kind = 'data'`];
+  const params: unknown[] = [];
+  if (opts.province === "all") where.push(`data_key NOT LIKE 'tsic:%:%'`);
+  else if (opts.province) {
+    where.push(`data_key LIKE ?`);
+    params.push(`tsic:%:${opts.province}`);
+  }
+  if (opts.q) {
+    where.push(`(title LIKE ? OR description LIKE ?)`);
+    params.push(`%${opts.q}%`, `%${opts.q}%`);
+  }
+  const w = where.join(" AND ");
+  const [rows, [count], provinces] = await Promise.all([
+    dbQuery<RowDataPacket[]>(`SELECT ${DATA_COLS} FROM ai_article WHERE ${w} ORDER BY published_at DESC, id DESC LIMIT ${perPage} OFFSET ${(page - 1) * perPage}`, params),
+    dbQuery<RowDataPacket[]>(`SELECT COUNT(*) n FROM ai_article WHERE ${w}`, params),
+    dbQuery<RowDataPacket[]>(
+      `SELECT province p, COUNT(*) n FROM (SELECT ${DATA_COLS} FROM ai_article WHERE status = 'published' AND kind = 'data') x
+       WHERE province IS NOT NULL GROUP BY province ORDER BY n DESC, province`,
+    ),
+  ]);
+  return {
+    rows: rows.map(toLink),
+    total: Number(count?.n ?? 0),
+    page,
+    perPage,
+    provinces: provinces.map((r) => ({ province: String(r.p), n: Number(r.n) })),
+  };
+}
+
+/** บทความสถิติของประเภทธุรกิจเดียวกัน (ทั่วประเทศก่อน แล้วรายจังหวัด) — ใช้ในหน้าบทความและหน้าบริษัท */
+export async function listDataArticlesForTsic(tsic: string, opts: { excludeSlug?: string; province?: string | null; limit?: number } = {}) {
+  const rows = await dbQuery<RowDataPacket[]>(
+    `SELECT ${DATA_COLS} FROM ai_article
+     WHERE status = 'published' AND kind = 'data' AND (data_key = ? OR data_key LIKE ?) AND slug <> ?
+     ORDER BY data_key = ? DESC, data_key = ? DESC, published_at DESC LIMIT ${opts.limit ?? 8}`,
+    [`tsic:${tsic}`, `tsic:${tsic}:%`, opts.excludeSlug ?? "", `tsic:${tsic}:${opts.province ?? ""}`, `tsic:${tsic}`],
+  );
+  return rows.map(toLink);
+}

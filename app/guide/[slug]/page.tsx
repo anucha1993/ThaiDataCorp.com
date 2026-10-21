@@ -4,8 +4,8 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import Ad from "@/components/Ad";
 import AiArticleView from "@/components/AiArticleView";
-import { getAiArticleBySlug, listAiArticles } from "@/lib/ai-articles";
-import { formatThaiDate, SITE_NAME, SITE_URL } from "@/lib/format";
+import { getAiArticleBySlug, listAiArticles, listDataArticlesForTsic } from "@/lib/ai-articles";
+import { formatThaiDate, SITE_NAME, SITE_URL, tsicUrl } from "@/lib/format";
 import { getGuide, GUIDES, type GuideMeta } from "@/lib/guides";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -18,7 +18,12 @@ export function generateStaticParams() {
   return GUIDES.map((g) => ({ slug: g.slug }));
 }
 
-type Resolved = GuideMeta & { content: ReactNode; ai: false | "general" | "data" };
+type Resolved = GuideMeta & {
+  content: ReactNode;
+  ai: false | "general" | "data";
+  /** บทความสถิติ: กลุ่มข้อมูล (data_key = tsic:CODE[:จังหวัด]) */
+  segment?: { tsic: string; province: string | null };
+};
 
 async function resolve(slug: string): Promise<Resolved | null> {
   const g = getGuide(slug);
@@ -37,6 +42,10 @@ async function resolve(slug: string): Promise<Resolved | null> {
     updated: day,
     content: <AiArticleView body={a.body} />,
     ai: a.kind,
+    ...(a.kind === "data" &&
+      a.dataKey && {
+        segment: { tsic: a.dataKey.split(":")[1], province: a.dataKey.split(":").slice(2).join(":") || null },
+      }),
   };
 }
 
@@ -54,10 +63,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function GuidePage({ params }: Props) {
   const g = await resolve((await params).slug);
   if (!g) notFound();
-  const ai = await listAiArticles("published", 50).catch(() => []);
+  const [ai, sameTsic] = await Promise.all([
+    listAiArticles("published", 50)
+      .then((rows) => rows.filter((a) => a.kind !== "data"))
+      .catch(() => []),
+    g.segment ? listDataArticlesForTsic(g.segment.tsic, { excludeSlug: g.slug, limit: 10 }).catch(() => []) : Promise.resolve([]),
+  ]);
   const all: Pick<GuideMeta, "slug" | "title" | "description" | "category" | "minutes">[] = [...GUIDES, ...ai];
-  // หมวดเดียวกันก่อน แล้วตามด้วยหมวดอื่น (ไม่เกิน 8 เรื่อง)
-  const others = [...all.filter((x) => x.slug !== g.slug && x.category === g.category), ...all.filter((x) => x.category !== g.category)].slice(0, 8);
+  // คู่มือ: หมวดเดียวกันก่อน แล้วตามด้วยหมวดอื่น · บทความสถิติ: คู่มือการตรวจสอบคู่ค้าที่ใช้คู่กันได้
+  const others = g.segment
+    ? all.filter((x) => x.category === "ตรวจสอบคู่ค้า").slice(0, 5)
+    : [...all.filter((x) => x.slug !== g.slug && x.category === g.category), ...all.filter((x) => x.category !== g.category)].slice(0, 8);
+  const crumb = g.segment ? { name: "สถิติธุรกิจ", href: "/guide/stats" } : null;
   const url = `${SITE_URL}/guide/${g.slug}`;
   const jsonLd = {
     "@context": "https://schema.org",
@@ -78,8 +95,9 @@ export default async function GuidePage({ params }: Props) {
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "หน้าหลัก", item: SITE_URL },
-          { "@type": "ListItem", position: 2, name: "คู่มือ", item: `${SITE_URL}/guide` },
-          { "@type": "ListItem", position: 3, name: g.title, item: url },
+          { "@type": "ListItem", position: 2, name: "บทความ", item: `${SITE_URL}/guide` },
+          ...(crumb ? [{ "@type": "ListItem", position: 3, name: crumb.name, item: `${SITE_URL}${crumb.href}` }] : []),
+          { "@type": "ListItem", position: crumb ? 4 : 3, name: g.title, item: url },
         ],
       },
     ],
@@ -89,7 +107,13 @@ export default async function GuidePage({ params }: Props) {
     <main className="mx-auto max-w-6xl px-4 py-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <nav aria-label="breadcrumb" className="mb-2 text-sm text-wiki-muted">
-        <Link href="/">หน้าหลัก</Link> › <Link href="/guide">คู่มือ</Link>
+        <Link href="/">หน้าหลัก</Link> › <Link href="/guide">บทความ</Link>
+        {crumb && (
+          <>
+            {" "}
+            › <Link href={crumb.href}>{crumb.name}</Link>
+          </>
+        )}
       </nav>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
         <article className="border border-wiki-border-light bg-white px-4 py-5 sm:px-8">
@@ -106,9 +130,33 @@ export default async function GuidePage({ params }: Props) {
             โปรดตรวจสอบกับหน่วยงานที่เกี่ยวข้อง · พบข้อผิดพลาด? <Link href="/contact">แจ้งเรา</Link>
           </p>
         </article>
-        <aside className="lg:sticky lg:top-4">
+        <aside className="space-y-4 lg:sticky lg:top-4">
+          {g.segment && (
+            <div className="border border-wiki-border-light bg-white px-4 py-3">
+              <h2 className="mb-2 font-bold">ธุรกิจเดียวกัน พื้นที่อื่น</h2>
+              {sameTsic.length > 0 && (
+                <ul className="space-y-2 text-sm">
+                  {sameTsic.map((o) => (
+                    <li key={o.slug}>
+                      <Link href={`/guide/${o.slug}`}>{o.province ? `จังหวัด${o.province}` : "ภาพรวมทั่วประเทศ"}</Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <ul className="mt-2 space-y-2 border-t border-wiki-border-light pt-2 text-sm">
+                <li>
+                  <Link href={tsicUrl(g.segment.tsic, g.segment.province ?? undefined)}>
+                    รายชื่อบริษัทในธุรกิจนี้{g.segment.province ? ` จ.${g.segment.province}` : ""} →
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/guide/stats">สถิติธุรกิจทั้งหมด →</Link>
+                </li>
+              </ul>
+            </div>
+          )}
           <div className="border border-wiki-border-light bg-white px-4 py-3">
-            <h2 className="mb-2 font-bold">คู่มืออื่น</h2>
+            <h2 className="mb-2 font-bold">{g.segment ? "คู่มือที่ใช้คู่กัน" : "คู่มืออื่น"}</h2>
             <ul className="space-y-2 text-sm">
               {others.map((o) => (
                 <li key={o.slug}>
@@ -117,7 +165,7 @@ export default async function GuidePage({ params }: Props) {
               ))}
             </ul>
             <Link href="/guide" className="mt-3 inline-block text-sm">
-              ดูคู่มือทั้งหมด →
+              ดูบทความทั้งหมด →
             </Link>
           </div>
         </aside>

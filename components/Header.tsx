@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/format";
 import { isBillingEnabled } from "@/lib/billing";
+import MainNav from "@/components/MainNav";
 import UserNav from "@/components/UserNav";
 
 /**
@@ -45,6 +46,7 @@ export default async function Header() {
         </form>
         <UserNav billing={billing} />
       </div>
+      <MainNav />
     </header>
   );
 }

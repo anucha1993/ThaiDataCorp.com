@@ -31,7 +31,8 @@ export default async function Footer() {
           <Link href="/new">บริษัทเปิดใหม่</Link>
           <Link href="/changes">ความเคลื่อนไหวบริษัท</Link>
           <Link href="/report">ดัชนีธุรกิจรายเดือน</Link>
-          <Link href="/guide">คู่มือ</Link>
+          <Link href="/guide">บทความ</Link>
+          <Link href="/guide/stats">สถิติธุรกิจ</Link>
           <Link href="/tsic">ประเภทธุรกิจ</Link>
           <Link href="/procurement">ผู้รับงานภาครัฐ</Link>
           <Link href="/agency">หน่วยงานรัฐ</Link>

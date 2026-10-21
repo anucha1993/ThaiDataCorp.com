@@ -2,6 +2,7 @@ import Link from "next/link";
 import LeadAlertButton from "@/components/LeadAlertButton";
 import StatusBadge from "@/components/StatusBadge";
 import { formatBaht, formatNumber, formatThaiDate, inProvince, tsicUrl } from "@/lib/format";
+import { listDataArticlesForTsic } from "@/lib/ai-articles";
 import { listRelatedCompanies } from "@/lib/company-repo";
 
 /** บริษัทอื่นที่ทำธุรกิจเดียวกันในจังหวัดเดียวกัน (ล่าสุดก่อน) + ลิงก์ดูทั้งหมด + ปุ่มแจ้งเตือนบริษัทใหม่ */
@@ -16,7 +17,13 @@ export default async function RelatedCompanies({
   tsicName: string;
   province: string;
 }) {
-  const { rows, total } = await listRelatedCompanies(id, tsicCode, province, 8).catch(() => ({ rows: [], total: 0 }));
+  const [{ rows, total }, [stats]] = await Promise.all([
+    listRelatedCompanies(id, tsicCode, province, 8).catch(() => ({ rows: [], total: 0 })),
+    // บทความสถิติของธุรกิจนี้ — จังหวัดเดียวกันก่อน ไม่มีใช้ภาพรวมทั่วประเทศ
+    listDataArticlesForTsic(tsicCode, { province, limit: 2 })
+      .then((r) => r.filter((a) => a.province === province || a.province === null))
+      .catch(() => []),
+  ]);
   if (!rows.length) return null;
   return (
     <section id="related" aria-labelledby="related-h">
@@ -43,6 +50,11 @@ export default async function RelatedCompanies({
         <Link href={tsicUrl(tsicCode, province)}>
           ดูทั้งหมด {formatNumber(total)} ราย →
         </Link>
+        {stats && (
+          <Link href={`/guide/${stats.slug}`}>
+            สถิติธุรกิจนี้{stats.province ? inProvince(stats.province) : "ทั่วประเทศ"} →
+          </Link>
+        )}
         <LeadAlertButton tsicCode={tsicCode} province={province} label={`แจ้งเตือนเมื่อมีบริษัทเปิดใหม่ในธุรกิจนี้${inProvince(province)}`} />
       </div>
     </section>
