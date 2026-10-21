@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/format";
-import { GUIDE_CATEGORIES, GUIDES } from "@/lib/guides";
+import { listAiArticles } from "@/lib/ai-articles";
+import { GUIDE_CATEGORIES, GUIDES, type GuideMeta } from "@/lib/guides";
 
 export const metadata: Metadata = {
   title: "คู่มือตรวจสอบบริษัทและข้อมูลธุรกิจ",
@@ -10,7 +11,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/guide" },
 };
 
-export default function GuideIndexPage() {
+// บทความ AI ที่เผยแพร่ใหม่จะขึ้นภายใน 1 ชม. (หรือทันทีเมื่อกดเผยแพร่)
+export const revalidate = 3600;
+
+export default async function GuideIndexPage() {
+  const ai = await listAiArticles("published", 1000).catch(() => []);
+  const all: Pick<GuideMeta, "slug" | "title" | "description" | "category" | "minutes">[] = [...GUIDES, ...ai];
   return (
     <main className="mx-auto max-w-6xl px-4 py-4">
       <nav aria-label="breadcrumb" className="mb-2 text-sm text-wiki-muted">
@@ -23,7 +29,7 @@ export default function GuideIndexPage() {
           ไปจนถึงการหาซัพพลายเออร์และวิเคราะห์ตลาดงานภาครัฐ
         </p>
         {GUIDE_CATEGORIES.map((cat) => {
-          const list = GUIDES.filter((g) => g.category === cat);
+          const list = all.filter((g) => g.category === cat);
           if (!list.length) return null;
           return (
             <section key={cat} aria-labelledby={`cat-${cat}`}>

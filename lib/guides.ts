@@ -36,7 +36,7 @@ export interface GuideMeta {
   category: GuideCategory;
 }
 
-export const GUIDE_CATEGORIES = ["ตรวจสอบคู่ค้า", "พื้นฐานนิติบุคคล", "ภาษีและเอกสาร", "ทำธุรกิจ"] as const;
+export const GUIDE_CATEGORIES = ["ตรวจสอบคู่ค้า", "พื้นฐานนิติบุคคล", "ภาษีและเอกสาร", "ทำธุรกิจ", "สถิติธุรกิจ"] as const;
 export type GuideCategory = (typeof GUIDE_CATEGORIES)[number];
 
 export interface Guide extends GuideMeta {

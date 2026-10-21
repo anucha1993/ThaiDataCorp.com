@@ -635,3 +635,42 @@ CREATE TABLE IF NOT EXISTS juristic_tisi (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('sync-tisi', 1, '30 5 16 * *', NULL);
+
+-- v33: บทความอัตโนมัติด้วย OpenAI (ฉบับร่าง → ผู้ดูแลกดเผยแพร่) + คิวหัวข้อ
+CREATE TABLE IF NOT EXISTS ai_article (
+  id           INT           NOT NULL AUTO_INCREMENT,
+  slug         VARCHAR(120)  NOT NULL,
+  title        VARCHAR(255)  NOT NULL,
+  description  VARCHAR(500)  NOT NULL,
+  category     VARCHAR(32)   NOT NULL,
+  minutes      TINYINT       NOT NULL DEFAULT 5,
+  body         MEDIUMTEXT    NOT NULL COMMENT 'JSON {sections:[{heading,paragraphs,bullets}]}',
+  topic        VARCHAR(255)  NULL,
+  status       VARCHAR(16)   NOT NULL DEFAULT 'draft' COMMENT 'draft / published / rejected',
+  model        VARCHAR(64)   NULL,
+  tokens       INT           NOT NULL DEFAULT 0,
+  created_at   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  published_at DATETIME      NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_slug (slug),
+  KEY idx_status (status, published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ai_topic (
+  id         INT           NOT NULL AUTO_INCREMENT,
+  topic      VARCHAR(255)  NOT NULL,
+  status     VARCHAR(16)   NOT NULL DEFAULT 'queued' COMMENT 'queued / done / failed',
+  article_id INT           NULL,
+  error      VARCHAR(500)  NULL,
+  created_at TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_status (status, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ปิดไว้ก่อน — เปิดที่ /admin/articles และตั้งความถี่ที่ /admin/jobs (ค่าเริ่มต้น จันทร์/พุธ/ศุกร์ 09:00 ครั้งละ 1 บทความ)
+INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('ai-articles', 0, '0 9 * * 1,3,5', '--count=1');
+
+-- v34: บทความสถิติธุรกิจจากข้อมูลจริง — kind = general (ความรู้ทั่วไป) / data (เขียนจากตัวเลขในฐานข้อมูล), data_key = กลุ่มข้อมูล เช่น tsic:56101:เชียงใหม่
+ALTER TABLE ai_article ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'general';
+ALTER TABLE ai_article ADD COLUMN IF NOT EXISTS data_key VARCHAR(191) NULL;
+ALTER TABLE ai_article ADD INDEX IF NOT EXISTS idx_data_key (data_key);

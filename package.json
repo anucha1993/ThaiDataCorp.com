@@ -17,6 +17,8 @@
     "refresh:dbd": "tsx scripts/refresh-dbd.ts",
     "sync:vat": "tsx scripts/sync-vat.ts",
     "sync:tisi": "tsx scripts/sync-tisi.ts",
+    "ai:articles": "tsx scripts/ai-articles.ts",
+    "test:ai": "tsx scripts/test-ai-articles.ts",
     "sync:adsense": "tsx scripts/sync-adsense.ts",
     "alerts": "tsx scripts/send-alerts.ts",
     "jobs:tick": "tsx scripts/jobs-tick.ts",

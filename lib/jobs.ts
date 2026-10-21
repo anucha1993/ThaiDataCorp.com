@@ -67,6 +67,13 @@ export const JOBS: JobDef[] = [
     staleMinutes: 20,
   },
   {
+    key: "ai-articles",
+    label: "เขียนบทความอัตโนมัติ (OpenAI)",
+    description: "เขียนบทความความรู้จากคิวหัวข้อ (หรือให้ AI เสนอหัวข้อ) — ตั้งค่า/อ่านทวน/เผยแพร่ที่ /admin/articles · args: --count=จำนวนต่อรอบ",
+    script: "ai-articles.ts",
+    staleMinutes: 15,
+  },
+  {
     key: "adsense-report",
     label: "ดึงรายงานรายได้ Google AdSense",
     description: "ดึงรายได้/การแสดงผล/คลิก 35 วันล่าสุดจาก AdSense (ต้องเชื่อมต่อบัญชีที่ /admin/ads ก่อน)",
