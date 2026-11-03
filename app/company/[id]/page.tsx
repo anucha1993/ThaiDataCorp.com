@@ -31,7 +31,7 @@ import { getJuristicContact } from "@/lib/support";
 import WatchButton from "@/components/WatchButton";
 import { memberToolNote } from "@/lib/billing";
 import StatusBadge from "@/components/StatusBadge";
-import { getCompany, getProvider, isValidJuristicId, normalizeJuristicIdInput } from "@/lib/api";
+import { getCompany, getProvider, isCompanyIndexable, isValidJuristicId, normalizeJuristicIdInput } from "@/lib/api";
 import { OPEND_DATASET_URLS } from "@/lib/opend";
 import {
   buildIntroText,
@@ -78,13 +78,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = `${displayName(profile.nameTh, profile.nameEn)} เลขทะเบียน ${profile.id}`;
   const description = truncate(buildIntroText(data), 160);
   const isMock = data.source === "mock";
+  // หน้าที่มีแค่ชื่อ/ที่อยู่ → noindex (เนื้อหาบางทำให้ Google ลดความน่าเชื่อถือทั้งเว็บ) — ดู isJuristicIndexable
+  const indexable = !isMock && (await isCompanyIndexable(profile.id));
 
   return {
     title,
     description,
     alternates: { canonical },
     // หน้า mock ห้าม index เด็ดขาด กันข้อมูลตัวอย่างหลุดไปอยู่บน Google
-    robots: isMock ? { index: false, follow: false } : { index: true, follow: true, "max-snippet": -1 },
+    robots: isMock
+      ? { index: false, follow: false }
+      : indexable
+        ? { index: true, follow: true, "max-snippet": -1 }
+        : { index: false, follow: true },
     openGraph: {
       type: "website",
       title,

@@ -25,7 +25,7 @@ function randomId(): string {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-export default function CookieConsent({ ads = false }: { ads?: boolean }) {
+export default function CookieConsent() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -56,14 +56,7 @@ export default function CookieConsent({ ads = false }: { ads?: boolean }) {
       <div className="mx-auto flex max-w-6xl flex-col gap-3 text-sm md:flex-row md:items-center">
         <p className="flex-1 leading-6">
           เว็บไซต์นี้ใช้<b>คุกกี้ที่จำเป็น</b>สำหรับการเข้าสู่ระบบ และขออนุญาตใช้<b>คุกกี้สถิติ</b>เพื่อนับจำนวนผู้เข้าชมโดยไม่ระบุตัวตน
-          {ads ? (
-            <>
-              {" "}
-              และ<b>คุกกี้โฆษณา</b>ของ Google เพื่อแสดงโฆษณาที่ตรงความสนใจ (ถ้าไม่ยอมรับ จะเห็นโฆษณาทั่วไปที่ไม่ใช้ข้อมูลส่วนบุคคล)
-            </>
-          ) : (
-            " ไม่ใช้คุกกี้โฆษณา และไม่ส่งข้อมูลให้บุคคลภายนอก"
-          )}{" "}
+          {" ไม่ใช้คุกกี้โฆษณา และไม่ส่งข้อมูลให้บุคคลภายนอก "}
           · <Link href="/terms#cookies">รายละเอียด</Link>
         </p>
         <div className="flex shrink-0 gap-2">

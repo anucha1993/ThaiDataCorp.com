@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "ระบบหลังบ้าน
 const NAV = [
   { href: "/admin", label: "ภาพรวม" },
   { href: "/admin/analytics", label: "สถิติผู้เข้าชม" },
-  { href: "/admin/ads", label: "โฆษณา" },
+  { href: "/admin/ads", label: "โฆษณา Shopee" },
   { href: "/admin/articles", label: "บทความ AI" },
   { href: "/admin/jobs", label: "งาน Sync" },
   { href: "/admin/requests", label: "คำร้อง" },

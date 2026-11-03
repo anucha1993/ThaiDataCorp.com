@@ -1,19 +1,12 @@
 "use server";
-/** จัดการโฆษณา Google AdSense — เฉพาะผู้ดูแล */
+/** จัดการโฆษณาสินค้า Shopee Affiliate — เฉพาะผู้ดูแล */
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { setInternalSettings } from "@/lib/settings";
-import { dbQuery } from "@/lib/db";
-import {
-  AD_PAGE_TYPES,
-  AD_PLACEMENTS,
-  isPublisherId,
-  isSlotId,
-  type AdPageType,
-  type AdPlacement,
-  type AdsConfig,
-} from "@/lib/ads-config";
+import { AD_PAGE_TYPES, AD_PLACEMENTS, type AdPageType, type AdPlacement, type AdsConfig } from "@/lib/ads-config";
+import { parseAffiliateCsv } from "@/lib/affiliate-csv";
+import { deleteAllProducts, deleteProduct, importProducts, setProductActive, setProductImage } from "@/lib/affiliate-repo";
 
 async function requireAdmin() {
   const user = await requireUser("/admin/ads");
@@ -21,69 +14,71 @@ async function requireAdmin() {
   return user;
 }
 
+/** หน้าเว็บเป็น ISR → สร้างใหม่ทั้งเว็บให้การ์ดสินค้าเปลี่ยนตามทันที */
+const refreshSite = () => revalidatePath("/", "layout");
+
 export async function saveAdsConfig(formData: FormData) {
   await requireAdmin();
-  const s = (k: string) => String(formData.get(k) ?? "").trim();
-  // รับได้ทั้ง "ca-pub-123..." และ "pub-123..."
-  const pub = s("publisherId").replace(/^pub-/, "ca-pub-");
-  if (pub && !isPublisherId(pub)) redirect("/admin/ads?error=publisher");
-  const slots = {} as Record<AdPlacement, string>;
-  for (const k of Object.keys(AD_PLACEMENTS) as AdPlacement[]) {
-    const v = s(`slot_${k}`);
-    if (v && !isSlotId(v)) redirect(`/admin/ads?error=slot`);
-    slots[k] = v;
-  }
+  const placements = {} as Record<AdPlacement, boolean>;
+  for (const k of Object.keys(AD_PLACEMENTS) as AdPlacement[]) placements[k] = formData.get(`place_${k}`) === "1";
   const pages = {} as Record<AdPageType, boolean>;
   for (const k of Object.keys(AD_PAGE_TYPES) as AdPageType[]) pages[k] = formData.get(`page_${k}`) === "1";
-  const enabled = formData.get("enabled") === "1";
-  if (enabled && !pub) redirect("/admin/ads?error=need-publisher");
 
   const cfg: AdsConfig = {
-    enabled,
-    publisherId: pub,
-    autoAds: formData.get("autoAds") === "1",
+    enabled: formData.get("enabled") === "1",
     hideForPaid: formData.get("hideForPaid") === "1",
-    slots,
+    placements,
     pages,
-    extraExcluded: s("extraExcluded")
+    extraExcluded: String(formData.get("extraExcluded") ?? "")
       .split(/[\s,]+/)
       .filter((p) => p.startsWith("/"))
       .slice(0, 50),
-    adsTxtExtra: s("adsTxtExtra").slice(0, 4000),
   };
-  await setInternalSettings({ ads_config: JSON.stringify(cfg) });
-  await writeAdsTxt(cfg).catch((e) => console.error("[ads] write ads.txt failed:", e));
-  // หน้าเว็บเป็น ISR → สร้างใหม่ทั้งเว็บให้โฆษณา/meta/นโยบายเปลี่ยนตามทันที
-  revalidatePath("/", "layout");
+  await setInternalSettings({ affiliate_config: JSON.stringify(cfg) });
+  refreshSite();
   redirect("/admin/ads?ok=saved");
 }
 
-/**
- * ads.txt เป็นไฟล์จริงใน public/ — nginx/Passenger ส่งไฟล์ได้เองแม้แอป Node ปิดอยู่ (เช่น ระหว่าง deploy)
- * ถ้าเป็น route ของแอป crawler ของ AdSense ที่มาตรงช่วง deploy จะเจอ "ไม่พบ" (เคยเกิดแล้ว)
- */
-async function writeAdsTxt(cfg: AdsConfig): Promise<void> {
-  const { writeFile } = await import("node:fs/promises");
-  const path = await import("node:path");
-  const lines = [
-    ...(cfg.publisherId ? [`google.com, ${cfg.publisherId.replace(/^ca-/, "")}, DIRECT, f08c47fec0942fa0`] : []),
-    ...cfg.adsTxtExtra
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("<")),
-  ];
-  const body = lines.length ? `${lines.join("\n")}\n` : "# no authorized sellers yet\n";
-  await writeFile(path.join(process.cwd(), "public", "ads.txt"), body, "utf8");
+export async function importCsv(formData: FormData) {
+  await requireAdmin();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) redirect("/admin/ads?error=no-file#products");
+  if (file.size > 5 * 1024 * 1024) redirect("/admin/ads?error=too-big#products");
+  const { rows, skipped, headers } = parseAffiliateCsv(await file.text());
+  if (rows.length === 0) {
+    redirect(`/admin/ads?error=no-rows&headers=${encodeURIComponent(headers.join(" | ").slice(0, 500))}#products`);
+  }
+  const { added, updated } = await importProducts(rows);
+  refreshSite();
+  redirect(`/admin/ads?ok=imported&added=${added}&updated=${updated}&skipped=${skipped}#products`);
 }
 
-export async function disconnectAdsense() {
+export async function toggleProduct(formData: FormData) {
   await requireAdmin();
-  await setInternalSettings({ adsense_refresh_token: null, adsense_account: null, adsense_account_name: null });
-  redirect("/admin/ads?ok=disconnected#report");
+  await setProductActive(Number(formData.get("id")), formData.get("active") === "1");
+  refreshSite();
+  redirect("/admin/ads#products");
 }
 
-export async function syncAdsenseNow() {
+export async function updateProductImage(formData: FormData) {
   await requireAdmin();
-  await dbQuery(`UPDATE job_schedule SET requested_at = UTC_TIMESTAMP() WHERE job_key = 'adsense-report'`);
-  redirect("/admin/ads?ok=sync-queued#report");
+  const url = String(formData.get("imageUrl") ?? "").trim();
+  if (url && !/^https:\/\/\S+$/i.test(url)) redirect("/admin/ads?error=image#products");
+  await setProductImage(Number(formData.get("id")), url.slice(0, 1000) || null);
+  refreshSite();
+  redirect("/admin/ads#products");
+}
+
+export async function removeProduct(formData: FormData) {
+  await requireAdmin();
+  await deleteProduct(Number(formData.get("id")));
+  refreshSite();
+  redirect("/admin/ads#products");
+}
+
+export async function removeAllProducts() {
+  await requireAdmin();
+  await deleteAllProducts();
+  refreshSite();
+  redirect("/admin/ads?ok=cleared#products");
 }

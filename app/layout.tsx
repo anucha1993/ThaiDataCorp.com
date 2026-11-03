@@ -6,8 +6,6 @@ import Footer from "@/components/Footer";
 import PageTracker from "@/components/PageTracker";
 import CookieConsent from "@/components/CookieConsent";
 import NavigationProgress from "@/components/NavigationProgress";
-import AdsLoader from "@/components/AdsLoader";
-import { getAdsConfig, getPublicAdsConfig } from "@/lib/ads";
 import { Suspense } from "react";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/format";
 import "./globals.css";
@@ -20,7 +18,7 @@ const sarabun = Sarabun({
   variable: "--font-sarabun",
 });
 
-const baseMetadata: Metadata = {
+export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: `${SITE_NAME} — ${SITE_TAGLINE}`,
@@ -40,21 +38,13 @@ const baseMetadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
-/** meta google-adsense-account ใช้ยืนยันความเป็นเจ้าของเว็บกับ AdSense (ใส่เมื่อมี Publisher ID) */
-export async function generateMetadata(): Promise<Metadata> {
-  // ใส่ทันทีที่มี Publisher ID (แม้ยังไม่เปิดโฆษณา) — ใช้ยืนยันเว็บกับ AdSense ระหว่างรอการอนุมัติ
-  const ads = await getAdsConfig().catch(() => null);
-  return ads?.publisherId ? { ...baseMetadata, other: { "google-adsense-account": ads.publisherId } } : baseMetadata;
-}
-
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#f8f9fa",
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const ads = await getPublicAdsConfig().catch(() => null);
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="th" className={sarabun.variable}>
       <body className="flex min-h-screen flex-col">
@@ -70,9 +60,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <Suspense fallback={null}>
           <PageTracker />
           <NavigationProgress />
-          {ads && <AdsLoader config={ads} />}
         </Suspense>
-        <CookieConsent ads={Boolean(ads)} />
+        <CookieConsent />
       </body>
     </html>
   );

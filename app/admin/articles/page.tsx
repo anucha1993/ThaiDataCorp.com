@@ -44,7 +44,7 @@ export default async function AiArticlesAdmin({ searchParams }: Props) {
         actions={<span className={cfg.enabled ? "font-bold text-green-800" : "text-wiki-muted"}>{cfg.enabled ? "● เปิดอยู่" : "○ ปิดอยู่"}</span>}
       >
         <Notice>
-          <b>คำแนะนำ:</b> Google และ AdSense ไม่ชอบบทความ AI จำนวนมากที่ไม่มีคนตรวจ — ควร<b>อ่านทวนก่อนเผยแพร่</b> (ค่าเริ่มต้น) และตั้งความถี่ไม่เกินวันละ 1 บทความ
+          <b>คำแนะนำ:</b> Google ไม่ชอบบทความ AI จำนวนมากที่ไม่มีคนตรวจ — ควร<b>อ่านทวนก่อนเผยแพร่</b> (ค่าเริ่มต้น) และตั้งความถี่ไม่เกินวันละ 1 บทความ
           ระบบสั่ง AI ไม่ให้แต่งตัวเลข/ค่าธรรมเนียม/มาตรากฎหมาย แต่ AI ยังผิดพลาดได้ ตรวจข้อเท็จจริงทุกครั้ง
         </Notice>
         <form action={saveAiSettings} className="space-y-3 text-sm">

@@ -586,18 +586,7 @@ CREATE TABLE IF NOT EXISTS procurement_agency_winner (
 -- v28: รายงานรายเดือนนับผู้จด VAT ใหม่ตามวันที่อนุมัติ (sync-vat สร้างตารางใหม่แบบ LIKE จึงได้ index นี้ด้วย)
 ALTER TABLE juristic_vat ADD INDEX IF NOT EXISTS idx_approved (approved_date, branch_no);
 
--- v29: รายงานรายได้ Google AdSense (ดึงทุกวันด้วยงาน adsense-report) — ad_unit '__total__' = รวมทั้งวัน
-CREATE TABLE IF NOT EXISTS adsense_report (
-  report_date DATE          NOT NULL,
-  ad_unit     VARCHAR(255)  NOT NULL,
-  earnings    DECIMAL(14,4) NOT NULL DEFAULT 0 COMMENT 'รายได้ประมาณการ (บาท)',
-  page_views  INT           NOT NULL DEFAULT 0,
-  impressions INT           NOT NULL DEFAULT 0,
-  clicks      INT           NOT NULL DEFAULT 0,
-  PRIMARY KEY (report_date, ad_unit)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('adsense-report', 1, '30 6 * * *', NULL);
+-- v29: (เลิกใช้) รายงาน Google AdSense — ลบใน v35
 
 -- v30: ไม่นับสถิติการเข้าชมของสมาชิกบางคน (เช่น ทีมงานที่ทดสอบเว็บ) — ตั้งที่ /admin/members/[id]
 ALTER TABLE app_user ADD COLUMN IF NOT EXISTS no_analytics TINYINT(1) NOT NULL DEFAULT 0 AFTER suspended_by;
@@ -674,3 +663,27 @@ INSERT IGNORE INTO job_schedule (job_key, enabled, cron, args) VALUES ('ai-artic
 ALTER TABLE ai_article ADD COLUMN IF NOT EXISTS kind VARCHAR(16) NOT NULL DEFAULT 'general';
 ALTER TABLE ai_article ADD COLUMN IF NOT EXISTS data_key VARCHAR(191) NULL;
 ALTER TABLE ai_article ADD INDEX IF NOT EXISTS idx_data_key (data_key);
+
+-- v35: เลิกใช้ Google AdSense → ลิงก์ Shopee Affiliate (import CSV ที่ /admin/ads)
+DROP TABLE IF EXISTS adsense_report;
+DELETE FROM job_schedule WHERE job_key = 'adsense-report';
+DELETE FROM job_run WHERE job_key = 'adsense-report';
+DELETE FROM app_setting WHERE k IN ('ads_config', 'adsense_refresh_token', 'adsense_account', 'adsense_account_name', 'adsense_synced_at');
+CREATE TABLE IF NOT EXISTS affiliate_product (
+  id          INT           NOT NULL AUTO_INCREMENT,
+  item_id     VARCHAR(32)   NULL COMMENT 'Item Id ของ Shopee (ใช้กันซ้ำตอน import)',
+  name        VARCHAR(500)  NOT NULL,
+  price       VARCHAR(64)   NULL COMMENT 'ข้อความตามไฟล์ เช่น 199 หรือ 150-299',
+  shop        VARCHAR(255)  NULL,
+  commission  VARCHAR(32)   NULL COMMENT 'อัตราค่าคอมมิชชั่น เช่น 10%',
+  image_url   VARCHAR(1000) NULL,
+  product_url VARCHAR(1000) NULL,
+  offer_url   VARCHAR(1000) NOT NULL COMMENT 'ลิงก์ affiliate ที่นับค่าคอม',
+  active      TINYINT(1)    NOT NULL DEFAULT 1,
+  clicks      INT           NOT NULL DEFAULT 0,
+  created_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_item (item_id),
+  KEY idx_active (active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

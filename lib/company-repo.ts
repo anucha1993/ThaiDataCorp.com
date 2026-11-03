@@ -160,15 +160,34 @@ export async function listRecentJuristic(limit = 20): Promise<JuristicProfile[]>
   return listJuristicWhere(`j.register_date IS NOT NULL`, [], `j.register_date DESC, j.id DESC`, limit);
 }
 
-export async function countJuristic(): Promise<number> {
-  const rows = await dbQuery<RowDataPacket[]>(`SELECT COUNT(*) AS n FROM juristic`);
+/**
+ * หน้าบริษัทที่มีเนื้อหาพอให้ index (ที่เหลือ → noindex และไม่ใส่ sitemap)
+ * Google ถอดหน้าออกจาก index เกือบหมดเมื่อ 28 ต.ค. 2026 เพราะหน้าส่วนใหญ่มีแค่ชื่อ/ที่อยู่ (เนื้อหาบาง ซ้ำกัน)
+ * - จดทะเบียนไม่เกิน 12 เดือน (คนค้นหาบริษัทเปิดใหม่บ่อย)
+ * - มีสัญญาภาครัฐ / ใบอนุญาต มอก. / โปรไฟล์ที่เจ้าของยืนยัน
+ * - มีคนเข้ามาจากเว็บภายนอก (เช่น Google) ใน 180 วัน — หน้าที่ผู้ค้นหาเห็นคุณค่าแล้ว
+ */
+const INDEXABLE_WHERE = `(j.register_date >= CURDATE() - INTERVAL 12 MONTH
+  OR EXISTS (SELECT 1 FROM procurement_summary p WHERE p.winner_id = j.id)
+  OR EXISTS (SELECT 1 FROM juristic_tisi t WHERE t.tax_id = j.id)
+  OR EXISTS (SELECT 1 FROM company_profile c WHERE c.juristic_id = j.id AND c.hidden = 0)
+  OR EXISTS (SELECT 1 FROM page_view v WHERE v.entity_type = 'company' AND v.entity_id = j.id
+             AND v.referrer IS NOT NULL AND v.ts > UTC_TIMESTAMP() - INTERVAL 180 DAY))`;
+
+export async function isJuristicIndexable(id: string): Promise<boolean> {
+  const rows = await dbQuery<RowDataPacket[]>(`SELECT 1 FROM juristic j WHERE j.id = ? AND ${INDEXABLE_WHERE}`, [id]);
+  return rows.length > 0;
+}
+
+export async function countIndexableJuristic(): Promise<number> {
+  const rows = await dbQuery<RowDataPacket[]>(`SELECT COUNT(*) AS n FROM juristic j WHERE ${INDEXABLE_WHERE}`);
   return Number(rows[0]?.n ?? 0);
 }
 
-/** เลขทะเบียน + เวลาแก้ไขล่าสุด สำหรับ sitemap ชิ้นที่ `chunk` (เริ่มที่ 0) */
+/** เลขทะเบียน + เวลาแก้ไขล่าสุด สำหรับ sitemap ชิ้นที่ `chunk` (เริ่มที่ 0) — เฉพาะหน้าที่ index ได้ */
 export async function listJuristicForSitemap(chunk: number): Promise<Array<{ id: string; updatedAt: string }>> {
   const rows = await dbQuery<RowDataPacket[]>(
-    `SELECT id, updated_at FROM juristic ORDER BY id LIMIT ? OFFSET ?`,
+    `SELECT j.id, j.updated_at FROM juristic j WHERE ${INDEXABLE_WHERE} ORDER BY j.id LIMIT ? OFFSET ?`,
     [SITEMAP_CHUNK_SIZE, chunk * SITEMAP_CHUNK_SIZE],
   );
   // ใช้เฉพาะวันที่ (W3C date) — เลี่ยงปัญหา timezone ของ session DB

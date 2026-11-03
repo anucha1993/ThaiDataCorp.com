@@ -106,7 +106,7 @@ export function MemberLock({ next, what }: { next: string; what: string }) {
   return (
     <div className="my-4 border border-wiki-border bg-wiki-bg px-4 py-5 text-center">
       <p className="mb-3">{what}สำหรับสมาชิก — สมัครฟรี ด้วยอีเมลหรือ Google</p>
-      <Link href={`/register?next=${encodeURIComponent(next)}`} className={primaryButtonCls}>
+      <Link href={`/register?next=${encodeURIComponent(next)}`} rel="nofollow" className={primaryButtonCls}>
         สมัครสมาชิกฟรี
       </Link>
       <p className="mt-3 text-sm">

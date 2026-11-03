@@ -36,7 +36,8 @@ import { fetchDbdJuristic, isDbdOpenApiEnabled } from "@/lib/dbd-openapi";
 import { dbdRemaining } from "@/lib/dbd-quota";
 import { MOCK_COMPANIES } from "@/lib/mock-data";
 import {
-  countJuristic,
+  countIndexableJuristic,
+  isJuristicIndexable,
   findCompanyDetails,
   findJuristicById,
   findSameAddress,
@@ -392,13 +393,13 @@ export async function searchCompaniesByName(query: string): Promise<JuristicProf
 
 /**
  * จำนวนไฟล์ sitemap ของหน้าบริษัท (ไฟล์ละ ≤ 50,000 URL)
- * - DB:     ทุกนิติบุคคลในตาราง
+ * - DB:     เฉพาะนิติบุคคลที่มีเนื้อหาพอให้ index (isJuristicIndexable)
  * - Open-D: ไฟล์เดียว (นิติบุคคลตั้งใหม่ 6 เดือนล่าสุด)
  * - GDX / Mock: ไม่มีรายการ (GDX ไม่มี endpoint แสดงรายการทั้งหมด, หน้า mock เป็น noindex)
  */
 export async function getCompanySitemapCount(): Promise<number> {
   if (getProvider() !== "db") return 1;
-  const total = await countJuristic().catch((e) => {
+  const total = await countIndexableJuristic().catch((e) => {
     console.error("[api] sitemap count failed:", e);
     return 0;
   });
@@ -415,6 +416,18 @@ export async function getCompanySitemapEntries(chunk: number): Promise<Array<{ i
   return run().catch((e) => {
     console.error(`[api] sitemap chunk ${chunk} failed:`, e);
     return [];
+  });
+}
+
+/**
+ * หน้าบริษัทนี้ควร index ไหม (เกณฑ์เดียวกับ sitemap)
+ * DB ล่ม → ถือว่า index ได้ กันหน้าดีถูก cache เป็น noindex ไป 24 ชม.
+ */
+export async function isCompanyIndexable(id: string): Promise<boolean> {
+  if (getProvider() !== "db") return true;
+  return isJuristicIndexable(id).catch((e) => {
+    console.error(`[api] indexable check ${id} failed:`, e);
+    return true;
   });
 }
 

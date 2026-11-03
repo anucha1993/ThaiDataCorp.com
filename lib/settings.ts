@@ -70,7 +70,7 @@ export async function setSettings(values: Record<string, string>): Promise<void>
 }
 
 /**
- * บันทึกค่าภายในระบบที่ไม่อยู่ในฟอร์ม /admin/settings (เช่น ads_config JSON, token การเชื่อมต่อ AdSense)
+ * บันทึกค่าภายในระบบที่ไม่อยู่ในฟอร์ม /admin/settings (เช่น affiliate_config JSON)
  * null = ลบค่า
  */
 export async function setInternalSettings(values: Record<string, string | null>): Promise<void> {

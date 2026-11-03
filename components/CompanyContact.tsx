@@ -49,7 +49,7 @@ export default function CompanyContact({
         {verified ? (
           <Link href={`/business/${id}`}>เจ้าของกิจการ: จัดการข้อมูลบริษัท</Link>
         ) : (
-          <Link href={`/business/claim?id=${id}`}>เป็นเจ้าของกิจการ? ยืนยันบัญชีบริษัท (ฟรี)</Link>
+          <Link href={`/business/claim?id=${id}`} rel="nofollow">เป็นเจ้าของกิจการ? ยืนยันบัญชีบริษัท (ฟรี)</Link>
         )}
         <Link href={`/contact?type=correction&id=${id}&from=${from}`}>แจ้งข้อมูลไม่ถูกต้อง</Link>
         <Link href={`/contact?type=removal&id=${id}&from=${from}`}>ขอลบข้อมูลส่วนบุคคล</Link>
