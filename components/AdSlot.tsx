@@ -26,7 +26,7 @@ export default function AdSlot({
   if (isExcludedPath(pathname, { extraExcluded })) return null;
   if (hideForPaid && me?.loggedIn && me.paid) return null;
 
-  const grid = placement === "sidebar" ? "grid-cols-1" : placement === "content_top" ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4";
+  const grid = placement === "content_bottom" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2";
   return (
     <aside aria-label="สินค้าแนะนำ" className="my-6 clear-both">
       <div className="mb-1 text-[11px] tracking-wide text-wiki-muted">สินค้าแนะนำจาก Shopee · ลิงก์พันธมิตร (เราได้ค่าคอมมิชชั่นเมื่อมีการสั่งซื้อ)</div>
@@ -37,15 +37,15 @@ export default function AdSlot({
             href={`/go/${p.id}`}
             target="_blank"
             rel="sponsored nofollow noopener"
-            className="flex gap-2 border border-wiki-border-light bg-white p-2 text-sm text-wiki-text no-underline hover:border-[#ee4d2d] hover:no-underline"
+            className="flex flex-col border border-wiki-border-light bg-white text-sm text-wiki-text no-underline hover:border-[#ee4d2d] hover:no-underline"
           >
             {p.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- รูปจาก CDN ของ Shopee (ไม่ผ่าน next/image)
-              <img src={p.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 object-cover" />
+              <img src={p.imageUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="aspect-square w-full object-contain" />
             ) : (
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center bg-[#ee4d2d] text-xs font-bold text-white">Shopee</span>
+              <span className="flex aspect-square w-full items-center justify-center bg-[#ee4d2d] text-lg font-bold text-white">Shopee</span>
             )}
-            <span className="flex min-w-0 flex-col">
+            <span className="flex flex-1 flex-col gap-1 p-2">
               <span className="line-clamp-2 leading-5">{p.name}</span>
               {p.price && <span className="mt-auto font-bold text-[#ee4d2d]">฿{p.price.replace(/^฿/, "")}</span>}
             </span>
